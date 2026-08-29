@@ -52,40 +52,58 @@ async function readResponseBody(response) {
 }
 
 export class TorResourceFetcher {
-  constructor(client) {
+  constructor(client, logger = null) {
     this.client = client;
+    this.logger = logger;
     this.binaryCache = new Map();
     this.textCache = new Map();
   }
 
+  log(level, message) {
+    if (!this.logger) {
+      return;
+    }
+
+    const handler = this.logger[level] || this.logger.log;
+    if (typeof handler === 'function') {
+      handler.call(this.logger, message);
+    }
+  }
+
   async fetchResponse(url, init = {}) {
+    this.log('debug', `fetch -> ${url}`);
     return this.client.fetch(url, init);
   }
 
   async fetchText(url, init = {}) {
     const absoluteUrl = String(url);
     if (this.textCache.has(absoluteUrl)) {
+      this.log('debug', `text cache hit -> ${absoluteUrl}`);
       return this.textCache.get(absoluteUrl);
     }
 
     const response = await this.fetchResponse(absoluteUrl, init);
     if (!response.ok) {
+      this.log('warn', `text fetch failed ${response.status} -> ${absoluteUrl}`);
       throw new Error(`HTTP ${response.status} while fetching ${absoluteUrl}`);
     }
 
     const text = await response.text();
     this.textCache.set(absoluteUrl, text);
+    this.log('debug', `text fetched (${text.length} chars) -> ${absoluteUrl}`);
     return text;
   }
 
   async fetchBinaryDataUrl(url, init = {}) {
     const absoluteUrl = String(url);
     if (this.binaryCache.has(absoluteUrl)) {
+      this.log('debug', `binary cache hit -> ${absoluteUrl}`);
       return this.binaryCache.get(absoluteUrl);
     }
 
     const response = await this.fetchResponse(absoluteUrl, init);
     if (!response.ok) {
+      this.log('warn', `binary fetch failed ${response.status} -> ${absoluteUrl}`);
       throw new Error(`HTTP ${response.status} while fetching ${absoluteUrl}`);
     }
 
@@ -98,6 +116,10 @@ export class TorResourceFetcher {
         : arrayBufferToDataUrl(body.value, body.contentType || 'application/octet-stream');
 
     this.binaryCache.set(absoluteUrl, dataUrl);
+    this.log(
+      'debug',
+      `binary fetched (${body.kind === 'text' ? body.value.length : body.value.byteLength} units) -> ${absoluteUrl}`,
+    );
     return dataUrl;
   }
 
@@ -109,6 +131,7 @@ export class TorResourceFetcher {
       const rawUrl = match[2];
       const media = (match[3] || '').trim();
       const resolved = safeResolveRelativeUrl(rawUrl, baseUrl).toString();
+      this.log('debug', `css @import ${rawUrl} -> ${resolved}`);
       const importedCss = await this.fetchText(resolved);
       const rewritten = await this.rewriteCss(importedCss, resolved);
       const replacement = media ? `${rewritten}\n/* media: ${media} */` : rewritten;
@@ -125,6 +148,7 @@ export class TorResourceFetcher {
       }
 
       const resolved = safeResolveRelativeUrl(rawUrl, baseUrl).toString();
+      this.log('debug', `css url() ${rawUrl} -> ${resolved}`);
       if (!replacements.has(match[0])) {
         replacements.set(match[0], await this.fetchBinaryDataUrl(resolved));
       }
@@ -156,13 +180,20 @@ export class TorResourceFetcher {
     for (const link of stylesheetLinks) {
       try {
         const resolved = safeResolveRelativeUrl(link.getAttribute('href'), baseUrl).toString();
-        const cssText = await this.fetchText(resolved);
+        this.log('debug', `stylesheet link -> ${resolved}`);
+        const response = await this.fetchResponse(resolved);
+        const responseType = (response.headers.get('content-type') || '').toLowerCase();
+        if (!responseType.includes('css')) {
+          throw new Error(`Blocked non-css stylesheet content-type: ${responseType || 'unknown'}`);
+        }
+        const cssText = await response.text();
         const rewrittenCss = await this.rewriteCss(cssText, resolved);
         const style = document.createElement('style');
         style.setAttribute('data-tor-source', resolved);
         style.textContent = rewrittenCss;
         link.replaceWith(style);
       } catch (error) {
+        this.log('warn', `stylesheet blocked -> ${String(error.message || error)}`);
         const note = document.createElement('style');
         note.textContent = `/* blocked stylesheet: ${String(error.message || error)} */`;
         link.replaceWith(note);
@@ -206,17 +237,30 @@ export class TorResourceFetcher {
           const resolved = safeResolveRelativeUrl(rawValue, baseUrl).toString();
           const tag = node.tagName.toLowerCase();
           if (tag === 'script') {
-            const scriptText = await this.fetchText(resolved);
+            this.log('debug', `script src -> ${resolved}`);
+            const response = await this.fetchResponse(resolved);
+            const scriptType = (response.headers.get('content-type') || '').toLowerCase();
+            if (
+              !scriptType.includes('javascript') &&
+              !scriptType.includes('ecmascript') &&
+              !scriptType.includes('module')
+            ) {
+              throw new Error(`Blocked non-script content-type: ${scriptType || 'unknown'}`);
+            }
+
+            const scriptText = await response.text();
             node.removeAttribute('src');
             node.setAttribute('data-tor-source', resolved);
             node.textContent = scriptText;
             continue;
           }
 
+          this.log('debug', `${tag} ${attrName} -> ${resolved}`);
           const dataUrl = await this.fetchBinaryDataUrl(resolved);
           node.setAttribute(attrName, dataUrl);
           node.setAttribute('data-tor-source', resolved);
         } catch (error) {
+          this.log('warn', `${node.tagName.toLowerCase()} blocked -> ${String(error.message || error)}`);
           node.removeAttribute(attrName);
           node.setAttribute('data-tor-blocked', String(error.message || error));
         }
@@ -228,8 +272,10 @@ export class TorResourceFetcher {
       const rawHref = anchor.getAttribute('href');
       try {
         const resolved = safeResolveRelativeUrl(rawHref, baseUrl).toString();
+        this.log('debug', `link ${rawHref} -> ${resolved}`);
         anchor.setAttribute('href', resolved);
       } catch {
+        this.log('warn', `blocked link href -> ${rawHref}`);
         anchor.removeAttribute('href');
         anchor.setAttribute('data-tor-blocked', '1');
       }
@@ -240,8 +286,10 @@ export class TorResourceFetcher {
       const rawAction = form.getAttribute('action');
       try {
         const resolved = safeResolveRelativeUrl(rawAction || baseUrl, baseUrl).toString();
+        this.log('debug', `form action ${rawAction || '(empty)'} -> ${resolved}`);
         form.setAttribute('action', resolved);
       } catch {
+        this.log('warn', `blocked form action -> ${rawAction}`);
         form.setAttribute('action', baseUrl);
         form.setAttribute('data-tor-blocked', '1');
       }
@@ -252,8 +300,10 @@ export class TorResourceFetcher {
       const rawAction = node.getAttribute('formaction');
       try {
         const resolved = safeResolveRelativeUrl(rawAction, baseUrl).toString();
+        this.log('debug', `formaction ${rawAction} -> ${resolved}`);
         node.setAttribute('formaction', resolved);
       } catch {
+        this.log('warn', `blocked formaction -> ${rawAction}`);
         node.removeAttribute('formaction');
       }
     }
@@ -264,6 +314,15 @@ export class TorResourceFetcher {
       message.setAttribute('data-tor-blocked-frame', '1');
       message.textContent = `${node.tagName.toLowerCase()} blocked by the sandboxed viewer.`;
       node.replaceWith(message);
+      this.log('warn', `blocked embedded frame -> ${node.tagName.toLowerCase()}`);
+    }
+
+    if (!document.querySelector('link[rel~="icon"]')) {
+      const icon = document.createElement('link');
+      icon.rel = 'icon';
+      icon.href = 'data:,';
+      head.appendChild(icon);
+      this.log('debug', 'injected blank favicon to suppress browser fallback requests');
     }
 
     const bootstrapScript = document.createElement('script');
@@ -274,6 +333,7 @@ export class TorResourceFetcher {
       document.title = new URL(baseUrl).hostname;
     }
 
+    this.log('debug', `html rewrite complete -> ${baseUrl}`);
     return `<!doctype html>${root.outerHTML}`;
   }
 
@@ -386,13 +446,6 @@ export class TorResourceFetcher {
       </html>
     `;
   }
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
 }
 
 function getIframeBootstrapScript(baseUrl) {

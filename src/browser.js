@@ -53,11 +53,18 @@ export class OnionBrowser {
       : 'Set VITE_TOR_GATEWAY in your Cloudflare Pages environment';
   }
 
+  log(level, message) {
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+    this.appendLog(line);
+  }
+
   async start() {
     this.bindEvents();
 
     if (!hasGatewayConfiguration()) {
       this.setStatus('Gateway not configured');
+      this.log('warn', 'VITE_TOR_GATEWAY is missing.');
       this.appendLog(
         'Set VITE_TOR_GATEWAY to an ip:port:certhash gateway before browsing onion sites.',
       );
@@ -78,6 +85,7 @@ export class OnionBrowser {
 
     this.setStatus('Tor connected');
     this.setPageMessage('Ready');
+    this.log('info', 'Application ready.');
   }
 
   bindEvents() {
@@ -122,15 +130,18 @@ export class OnionBrowser {
       }
 
       if (event.source !== this.ui.viewer.contentWindow) {
+        this.log('warn', 'Ignored message from non-viewer source.');
         return;
       }
 
       if (data.type === 'navigate') {
+        this.log('info', `Viewer navigation requested -> ${data.url}`);
         void this.navigate(data.url);
         return;
       }
 
       if (data.type === 'submit') {
+        this.log('info', `Viewer form submit -> ${data.method || 'GET'} ${data.url}`);
         void this.navigate(data.url, {
           method: data.method,
           headers: data.headers,
@@ -140,6 +151,7 @@ export class OnionBrowser {
       }
 
       if (data.type === 'fetch') {
+        this.log('debug', `Viewer fetch -> ${data.method || 'GET'} ${data.url}`);
         void this.handleIframeFetch(event, data);
       }
     });
@@ -153,19 +165,24 @@ export class OnionBrowser {
     this.setStatus('Bootstrapping Tor');
     this.setPageMessage('Bootstrapping Tor client');
     this.setLoading(true);
-    this.appendLog('Starting tor-js bootstrap...');
+    this.log('info', 'Starting tor-js bootstrap...');
 
     this.client = await getTorClient({
       onLog: (level, message) => {
-        const line = `[${level}] ${message}`;
-        this.appendLog(line);
+        this.log(level, `tor-js: ${message}`);
       },
     });
-    this.fetcher = new TorResourceFetcher(this.client);
+    this.fetcher = new TorResourceFetcher(this.client, {
+      debug: (message) => this.log('debug', message),
+      info: (message) => this.log('info', message),
+      warn: (message) => this.log('warn', message),
+      error: (message) => this.log('error', message),
+      log: (message) => this.log('debug', message),
+    });
 
     this.setStatus('Tor connected');
     this.setLoading(false);
-    this.appendLog('Tor client is ready.');
+    this.log('info', 'Tor client is ready.');
     return this.client;
   }
 
@@ -173,6 +190,7 @@ export class OnionBrowser {
     try {
       this.setPageMessage('Running Tor connectivity test');
       this.setLoading(true);
+      this.log('info', `Running Tor connectivity test -> ${DEFAULT_TEST_URL}`);
       const response = await this.client.fetch(DEFAULT_TEST_URL);
       const data = await response.json();
       this.showTextResponse(
@@ -181,10 +199,10 @@ export class OnionBrowser {
         JSON.stringify(data, null, 2),
       );
       this.setStatus('Tor test completed');
-      this.appendLog('Tor connectivity test completed successfully.');
+      this.log('info', 'Tor connectivity test completed successfully.');
     } catch (error) {
       this.showError('Tor connectivity test failed', this.formatError(error));
-      this.appendLog(`Tor connectivity test failed: ${this.formatError(error)}`);
+      this.log('error', `Tor connectivity test failed: ${this.formatError(error)}`);
     } finally {
       this.setLoading(false);
     }
@@ -197,6 +215,7 @@ export class OnionBrowser {
     try {
       url = validateNavigationUrl(input, this.currentUrl?.toString() || '');
     } catch (error) {
+      this.log('warn', `Blocked navigation input "${input}": ${this.formatError(error)}`);
       this.showError('Invalid address', this.formatError(error));
       this.setPageMessage('Navigation blocked');
       return;
@@ -216,6 +235,7 @@ export class OnionBrowser {
     this.pendingNavigation = entry;
     this.setLoading(true);
     this.setPageMessage(`Loading ${url.hostname}`);
+    this.log('info', `Navigate -> ${entry.method} ${entry.url}`);
     this.hideError();
     this.hideTextResponse();
     this.showViewer();
@@ -234,6 +254,7 @@ export class OnionBrowser {
       this.setStatus('Fragment updated');
       this.setPageMessage(`Jumped to ${url.hash || 'fragment'}`);
       this.setAddress(url.toString());
+      this.log('debug', `Fragment-only navigation completed -> ${url.toString()}`);
       if (!replace) {
         this.history.push(entry);
       } else {
@@ -254,7 +275,9 @@ export class OnionBrowser {
 
       const finalUrl = response.url || entry.url;
       const finalParsed = new URL(finalUrl);
+      this.log('debug', `Response received -> ${response.status} ${response.statusText} ${finalUrl}`);
       if (finalParsed.hostname && !finalParsed.hostname.endsWith('.onion')) {
+        this.log('error', `Blocked redirect to non-onion destination -> ${finalUrl}`);
         throw new Error('Redirected to a non-onion destination, which is blocked.');
       }
 
@@ -276,7 +299,7 @@ export class OnionBrowser {
       this.showError('Unable to load page', this.formatError(error));
       this.setStatus('Load failed');
       this.setPageMessage('Navigation failed');
-      this.appendLog(`Navigation failed for ${entry.url}: ${this.formatError(error)}`);
+      this.log('error', `Navigation failed for ${entry.url}: ${this.formatError(error)}`);
     } finally {
       this.setLoading(false);
       this.pendingNavigation = null;
@@ -289,9 +312,15 @@ export class OnionBrowser {
 
     if (normalizedContentType.includes('text/html')) {
       const html = await response.text();
-      const rewritten = await this.fetcher.rewriteHtml(html, response.url || requestedUrl);
-      this.showViewerHtml(rewritten);
-      return;
+      this.log('debug', `Rendering HTML response (${html.length} chars) from ${response.url || requestedUrl}`);
+      try {
+        const rewritten = await this.fetcher.rewriteHtml(html, response.url || requestedUrl);
+        this.showViewerHtml(rewritten);
+        return;
+      } catch (error) {
+        this.log('error', `HTML rewrite failed for ${response.url || requestedUrl}: ${this.formatError(error)}`);
+        throw error;
+      }
     }
 
     if (
@@ -301,6 +330,7 @@ export class OnionBrowser {
       normalizedContentType.includes('javascript')
     ) {
       const text = await response.text();
+      this.log('debug', `Rendering text response (${text.length} chars) from ${response.url || requestedUrl}`);
       this.showTextResponse(
         normalizeDisplayUrl(response.url || requestedUrl),
         `HTTP ${response.status} ${response.statusText}`,
@@ -313,11 +343,18 @@ export class OnionBrowser {
       const dataUrl = await response
         .arrayBuffer()
         .then((buffer) => `data:${contentType};base64,${bytesToBase64(new Uint8Array(buffer))}`);
+      this.log('debug', `Rendering image response from ${response.url || requestedUrl}`);
       this.showImageResponse(dataUrl, response.url || requestedUrl);
       return;
     }
 
     const buffer = await response.arrayBuffer();
+    this.log(
+      'debug',
+      `Rendering binary response (${buffer.byteLength} bytes, ${contentType || 'unknown'}) from ${
+        response.url || requestedUrl
+      }`,
+    );
     this.showTextResponse(
       normalizeDisplayUrl(response.url || requestedUrl),
       `HTTP ${response.status} ${response.statusText}`,
@@ -327,6 +364,7 @@ export class OnionBrowser {
 
   async handleIframeFetch(event, data) {
     try {
+      this.log('debug', `Iframe bridge fetch start -> ${data.method || 'GET'} ${data.url}`);
       const response = await this.client.fetch(data.url, {
         method: data.method,
         headers: data.headers,
@@ -340,6 +378,10 @@ export class OnionBrowser {
 
       const arrayBuffer = await response.arrayBuffer();
       const bodyBase64 = bytesToBase64(new Uint8Array(arrayBuffer));
+      this.log(
+        'debug',
+        `Iframe bridge fetch complete -> ${response.status} ${response.statusText} ${data.url}`,
+      );
       event.source?.postMessage(
         {
           __tor: true,
@@ -356,6 +398,7 @@ export class OnionBrowser {
         '*',
       );
     } catch (error) {
+      this.log('error', `Iframe bridge fetch failed -> ${data.url}: ${this.formatError(error)}`);
       event.source?.postMessage(
         {
           __tor: true,
@@ -373,6 +416,8 @@ export class OnionBrowser {
     if (!state?.url) {
       return;
     }
+
+    this.log('info', `History popstate -> ${state.url}`);
 
     void this.navigate(state.url, {
       replace: true,

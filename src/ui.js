@@ -99,7 +99,7 @@ export function createAppShell(container) {
 
       <section class="log-panel">
         <div class="log-header">
-          <strong>Tor bootstrap and navigation log</strong>
+          <strong>Verbose debug stream</strong>
           <span>Local only, not uploaded</span>
         </div>
         <pre class="log-output" data-log-output>Waiting for Tor bootstrap...</pre>

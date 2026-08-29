@@ -1,11 +1,12 @@
-import { Log, TorClient, storage } from 'tor-js';
+const TOR_JS_MODULE_URL = 'https://cdn.jsdelivr.net/npm/tor-js@0.4.1/dist/entryPoints/wasm-cdn/index.js';
 
 export const TOR_GATEWAY = (import.meta.env.VITE_TOR_GATEWAY || '').trim();
 
 let torClientPromise = null;
 let torClientInstance = null;
+let torModulePromise = null;
 
-function createStorage() {
+function createStorage(storage) {
   try {
     if (typeof indexedDB !== 'undefined') {
       return new storage.IndexedDBStorage('onion-browser');
@@ -15,6 +16,14 @@ function createStorage() {
   }
 
   return new storage.MemoryStorage();
+}
+
+async function loadTorModule() {
+  if (!torModulePromise) {
+    torModulePromise = import(/* @vite-ignore */ TOR_JS_MODULE_URL);
+  }
+
+  return torModulePromise;
 }
 
 export function hasGatewayConfiguration() {
@@ -34,6 +43,7 @@ export async function getTorClient({ onLog } = {}) {
         );
       }
 
+      const { Log, TorClient, storage } = await loadTorModule();
       const log = new Log({
         rawLog: (level, ...args) => {
           const message = args
@@ -55,7 +65,7 @@ export async function getTorClient({ onLog } = {}) {
 
       const client = new TorClient({
         gateway: TOR_GATEWAY,
-        storage: createStorage(),
+        storage: createStorage(storage),
         log,
         logLevel: 'info',
       });
