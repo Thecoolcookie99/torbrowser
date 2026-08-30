@@ -1,5 +1,3 @@
-import './styles.css';
-
 import { createAppShell } from './ui.js';
 import { OnionBrowser } from './browser.js';
 
