@@ -1,7 +1,7 @@
 import { BrowserHistory } from './history.js';
 import { hasGatewayConfiguration, getTorClient, TOR_GATEWAY } from './tor.js';
 import { TorResourceFetcher } from './proxy.js';
-import { validateNavigationUrl, normalizeDisplayUrl } from './url.js';
+import { getLaunchTargetFromLocation, normalizeDisplayUrl, validateNavigationUrl } from './url.js';
 
 const DEFAULT_TEST_URL = 'https://check.torproject.org/api/ip';
 
@@ -51,6 +51,7 @@ export class OnionBrowser {
     this.ui.gatewayLabel.textContent = hasGatewayConfiguration()
       ? TOR_GATEWAY
       : 'Set VITE_TOR_GATEWAY in your Cloudflare Pages environment';
+    this.setConnectionState('Tor: idle', 'Waiting to bootstrap the Tor client.');
   }
 
   log(level, message) {
@@ -59,11 +60,22 @@ export class OnionBrowser {
     this.appendLog(line);
   }
 
+  setConnectionState(state, detail) {
+    this.ui.connectionState.textContent = state;
+    this.ui.connectionDetail.textContent = detail;
+  }
+
   async start() {
     this.bindEvents();
 
+    const launchTarget = getLaunchTargetFromLocation(window.location);
+    if (launchTarget) {
+      this.ui.addressInput.value = launchTarget;
+      this.log('info', `Detected launch target from page path -> ${launchTarget}`);
+    }
+
     if (!hasGatewayConfiguration()) {
-      this.setStatus('Gateway not configured');
+      this.setConnectionState('Tor: gateway missing', 'Set VITE_TOR_GATEWAY before browsing onion sites.');
       this.log('warn', 'VITE_TOR_GATEWAY is missing.');
       this.appendLog(
         'Set VITE_TOR_GATEWAY to an ip:port:certhash gateway before browsing onion sites.',
@@ -75,7 +87,18 @@ export class OnionBrowser {
       return;
     }
 
+    this.setConnectionState('Tor: connecting', 'Opening the browser client and connecting to the configured gateway.');
     await this.bootstrapTor();
+
+    if (launchTarget) {
+      this.setPageMessage('Launching onion site from the page path');
+      try {
+        await this.navigate(launchTarget, { replace: true, quiet: true });
+      } catch {
+        // navigate() handles and logs its own errors.
+      }
+      return;
+    }
 
     const initial = this.history.current();
     if (initial?.url) {
@@ -83,7 +106,7 @@ export class OnionBrowser {
       return;
     }
 
-    this.setStatus('Tor connected');
+    this.setConnectionState('Tor: connected', 'The Tor client is ready for browsing.');
     this.setPageMessage('Ready');
     this.log('info', 'Application ready.');
   }
@@ -165,11 +188,13 @@ export class OnionBrowser {
     this.setStatus('Bootstrapping Tor');
     this.setPageMessage('Bootstrapping Tor client');
     this.setLoading(true);
+    this.setConnectionState('Tor: starting', 'Loading the tor-js runtime and preparing bootstrap state.');
     this.log('info', 'Starting tor-js bootstrap...');
 
     this.client = await getTorClient({
       onLog: (level, message) => {
         this.log(level, `tor-js: ${message}`);
+        this.updateConnectionStateFromTorLog(message);
       },
     });
     this.fetcher = new TorResourceFetcher(this.client, {
@@ -180,10 +205,36 @@ export class OnionBrowser {
       log: (message) => this.log('debug', message),
     });
 
-    this.setStatus('Tor connected');
+    this.setConnectionState('Tor: connected', 'Tor bootstrap completed and the client is ready.');
     this.setLoading(false);
     this.log('info', 'Tor client is ready.');
     return this.client;
+  }
+
+  updateConnectionStateFromTorLog(message) {
+    const lower = String(message || '').toLowerCase();
+
+    if (lower.includes('fast bootstrap: fetching bootstrap.zip.zst')) {
+      this.setConnectionState(
+        'Tor: fetching directory snapshot',
+        'Downloading the fast bootstrap snapshot from the gateway.',
+      );
+      return;
+    }
+
+    if (lower.includes('bootstrapping...')) {
+      this.setConnectionState('Tor: bootstrapping', 'Starting the Tor engine and loading bootstrap state.');
+      return;
+    }
+
+    if (lower.includes('bootstrap complete')) {
+      this.setConnectionState('Tor: connected', 'Tor bootstrap completed and the client is ready.');
+      return;
+    }
+
+    if (lower.includes('fetching ') && lower.includes('through tor')) {
+      this.setConnectionState('Tor: connecting', 'A request is reaching the Tor network.');
+    }
   }
 
   async runTorCheck() {

@@ -19,6 +19,10 @@ export function createAppShell(container) {
           <p class="gateway-hint">
             Tor traffic is routed through the configured gateway before reaching the Tor network.
           </p>
+          <div class="connection-stack">
+            <div class="connection-state" data-connection-state>Tor: idle</div>
+            <div class="connection-detail" data-connection-detail>Waiting to bootstrap the Tor client.</div>
+          </div>
         </div>
         <button class="ghost-button" type="button" data-test-button>Test Tor</button>
       </section>
@@ -111,6 +115,8 @@ export function createAppShell(container) {
     root: container,
     status: container.querySelector('[data-status]'),
     gatewayLabel: container.querySelector('[data-gateway-label]'),
+    connectionState: container.querySelector('[data-connection-state]'),
+    connectionDetail: container.querySelector('[data-connection-detail]'),
     testButton: container.querySelector('[data-test-button]'),
     backButton: container.querySelector('[data-back-button]'),
     forwardButton: container.querySelector('[data-forward-button]'),

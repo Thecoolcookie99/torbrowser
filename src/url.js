@@ -135,3 +135,35 @@ export function safeResolveRelativeUrl(rawUrl, baseUrl) {
 export function normalizeDisplayUrl(url) {
   return new URL(url).toString();
 }
+
+export function getLaunchTargetFromLocation(locationLike) {
+  if (!locationLike) {
+    return null;
+  }
+
+  const search = String(locationLike.search || '');
+  if (search) {
+    const params = new URLSearchParams(search);
+    const candidate = params.get('url') || params.get('target');
+    if (candidate) {
+      try {
+        return coerceToAbsoluteUrl(candidate).toString();
+      } catch {
+        // Fall through to pathname parsing.
+      }
+    }
+  }
+
+  const pathname = String(locationLike.pathname || '/');
+  const trimmed = pathname.replace(/^\/+/, '');
+  if (!trimmed || trimmed === 'index.html') {
+    return null;
+  }
+
+  const decoded = decodeURIComponent(trimmed);
+  try {
+    return coerceToAbsoluteUrl(decoded).toString();
+  } catch {
+    return null;
+  }
+}
