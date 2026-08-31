@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Onion Viewer</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111714;
+        --panel: #18211d;
+        --panel-2: #202a25;
+        --text: #eff7f1;
+        --muted: #abc0b4;
+        --accent: #8ce0aa;
+        --accent-2: #ffe08a;
+        --danger: #ff9a8a;
+        --border: rgba(255, 255, 255, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      main {
+        width: min(920px, calc(100vw - 32px));
+        margin: 40px auto;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(1.9rem, 4vw, 3rem);
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+      }
+
+      input {
+        min-width: 0;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font: inherit;
+        padding: 13px 14px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #08130d;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        min-width: 96px;
+        padding: 13px 16px;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+
+      .status {
+        margin-top: 14px;
+        min-height: 22px;
+        color: var(--accent-2);
+        overflow-wrap: anywhere;
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      @media (max-width: 640px) {
+        main {
+          width: min(100vw - 20px, 920px);
+          margin: 20px auto;
+        }
+
+        .panel {
+          padding: 18px;
+        }
+
+        form {
+          grid-template-columns: 1fr;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>Onion Viewer</h1>
+        <p>Load hidden-service pages through this Cloudflare Worker.</p>
+        <form id="viewer-form">
+          <input
+            id="target-url"
+            type="text"
+            value="http://xao2lxsmia2edq2n5zxg6uahx6xox2t7bfjw6b5vdzsxi7ezmqob6qid.onion/"
+            placeholder="http://example.onion/"
+            autocomplete="url"
+            spellcheck="false"
+            aria-label="Target URL"
+          />
+          <button id="open-button" type="submit">Open</button>
+        </form>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById('viewer-form');
+      const input = document.getElementById('target-url');
+      const button = document.getElementById('open-button');
+      const status = document.getElementById('status');
+
+      function isOnionHost(hostname) {
+        return /^(?:[a-z0-9-]+\.)*onion$/i.test(hostname);
+      }
+
+      function normalizeTarget(value) {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+
+        const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+          ? trimmed
+          : isOnionHost(trimmed.split(/[/?#]/, 1)[0].split(':', 1)[0])
+            ? `http://${trimmed}`
+            : `https://${trimmed}`;
+
+        const url = new URL(candidate);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          throw new Error('Only HTTP and HTTPS URLs are supported.');
+        }
+
+        return url.toString();
+      }
+
+      function makeViewerPath(url) {
+        const target = new URL(url);
+        return `/view/${target.protocol.slice(0, -1)}/${target.host}${target.pathname}${target.search}${target.hash}`;
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        status.className = 'status';
+        status.textContent = '';
+
+        try {
+          const normalized = normalizeTarget(input.value);
+          if (!normalized) return;
+
+          const target = new URL(normalized);
+          button.disabled = true;
+          status.textContent = isOnionHost(target.hostname) ? 'Opening hidden service...' : 'Opening public URL...';
+
+          window.location.assign(isOnionHost(target.hostname) ? makeViewerPath(target.toString()) : target.toString());
+        } catch (error) {
+          button.disabled = false;
+          status.className = 'status error';
+          status.textContent = error instanceof Error ? error.message : String(error);
+        }
+      });
+    </script>
+  </body>
+</html>
