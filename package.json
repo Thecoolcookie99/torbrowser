@@ -16,5 +16,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.5.4",
     "wrangler": "^3.101.0"
+  },
+  "dependencies": {
+    "tor-js": "^0.4.1"
   }
 }

@@ -1,26 +1,15 @@
 import { connect } from 'cloudflare:sockets';
-import {
-  buildSocks5ConnectRequest,
-  buildSocks5Greeting,
-  buildSocks5UsernamePasswordAuthRequest,
-  parseSocks5GreetingReply,
-  parseSocks5Reply,
-  parseSocks5UsernamePasswordAuthReply,
-  socks5StatusMessage,
-} from './socks5.js';
+import { ArtiSocket, Log, TorClient, storage, type FetchInit } from 'tor-js/wasm-base64';
 import { rewriteOnionHtml } from './route.js';
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
-type Bytes = Uint8Array<ArrayBuffer>;
+const DEFAULT_FETCH_TIMEOUT_MS = 120_000;
 
 export type TorFetchEnv = {
-  TOR_SOCKS_HOST?: string;
-  TOR_SOCKS_PORT?: string;
-  TOR_SOCKS_USERNAME?: string;
-  TOR_SOCKS_PASSWORD?: string;
+  TOR_GATEWAY?: string;
+  TOR_LOG_LEVEL?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   MAX_RESPONSE_BYTES?: string;
+  FETCH_TIMEOUT_MS?: string;
 };
 
 export type TorFetchResult = {
@@ -28,301 +17,173 @@ export type TorFetchResult = {
   targetUrl: string;
 };
 
-type SocketLike = {
-  readable: ReadableStream<Uint8Array>;
-  writable: WritableStream<Uint8Array>;
-  close(): Promise<void>;
-  startTls?(options?: { expectedServerHostname?: string }): SocketLike;
+type ClientState = {
+  key: string;
+  client: TorClient;
 };
 
-type HttpHead = {
-  status: number;
-  statusText: string;
-  headers: Headers;
-  rest: Uint8Array;
-};
-
-class BufferedReader {
-  private buffered: Bytes = new Uint8Array(0);
-
-  constructor(private readonly reader: ReadableStreamDefaultReader<Uint8Array>) {}
-
-  async readExactly(length: number): Promise<Bytes> {
-    while (this.buffered.length < length) {
-      const { done, value } = await this.reader.read();
-      if (done || !value) {
-        throw new Error('Socket closed before enough bytes were received.');
-      }
-      this.buffered = concat(this.buffered, value);
-    }
-
-    const result = copyBytes(this.buffered.slice(0, length));
-    this.buffered = copyBytes(this.buffered.slice(length));
-    return result;
-  }
-
-  async read(): Promise<ReadableStreamReadResult<Uint8Array>> {
-    if (this.buffered.length > 0) {
-      const value = this.buffered;
-      this.buffered = new Uint8Array(0);
-      return { done: false, value };
-    }
-
-    return this.reader.read();
-  }
-}
+let clientState: ClientState | null = null;
 
 export async function fetchThroughTor(request: Request, targetUrl: URL, env: TorFetchEnv, viewerOrigin: string): Promise<TorFetchResult> {
-  const socksHost = env.TOR_SOCKS_HOST;
-  const socksPort = Number(env.TOR_SOCKS_PORT ?? 9050);
-  if (!socksHost || !Number.isInteger(socksPort) || socksPort < 1 || socksPort > 65535) {
-    throw new Error('TOR_SOCKS_HOST and TOR_SOCKS_PORT must point to a reachable SOCKS5 Tor proxy.');
-  }
+  const client = getClient(env);
+  const timeoutMs = readPositiveInteger(env.FETCH_TIMEOUT_MS, DEFAULT_FETCH_TIMEOUT_MS);
+  const response = await client.fetch(targetUrl.toString(), await buildTorFetchInit(request, timeoutMs));
+  const headers = buildResponseHeaders(response.headers);
 
-  const targetPort = Number(targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80));
-  let socket = connect({ hostname: socksHost, port: socksPort }, { allowHalfOpen: false }) as SocketLike;
-  let reader = socket.readable.getReader();
-  let bufferedReader = new BufferedReader(reader);
-  let writer = socket.writable.getWriter();
+  rewriteLocationHeader(headers, targetUrl.toString(), viewerOrigin);
+  headers.set('x-onion-viewer-target', targetUrl.toString());
 
-  try {
-    const useAuth = Boolean(env.TOR_SOCKS_USERNAME || env.TOR_SOCKS_PASSWORD);
-    await writer.write(buildSocks5Greeting(useAuth));
-    const greeting = parseSocks5GreetingReply(await bufferedReader.readExactly(2));
-
-    if (greeting.method === 0x02) {
-      await writer.write(buildSocks5UsernamePasswordAuthRequest(env.TOR_SOCKS_USERNAME ?? '', env.TOR_SOCKS_PASSWORD ?? ''));
-      parseSocks5UsernamePasswordAuthReply(await bufferedReader.readExactly(2));
-    }
-
-    await writer.write(buildSocks5ConnectRequest(targetUrl.hostname, targetPort));
-    const reply = parseSocks5Reply(await readSocks5ConnectReply(bufferedReader));
-    if (reply.status !== 0x00) {
-      throw new Error(`SOCKS5 connection failed: ${socks5StatusMessage(reply.status)}.`);
-    }
-
-    writer.releaseLock();
-    reader.releaseLock();
-
-    if (targetUrl.protocol === 'https:') {
-      if (!socket.startTls) {
-        throw new Error('This runtime does not support TLS over sockets.');
-      }
-      socket = socket.startTls({ expectedServerHostname: targetUrl.hostname });
-    }
-
-    reader = socket.readable.getReader();
-    bufferedReader = new BufferedReader(reader);
-    writer = socket.writable.getWriter();
-
-    await writer.write(await buildHttpRequestBytes(request, targetUrl));
-    writer.releaseLock();
-
-    const head = await readHttpHead(bufferedReader);
-    const maxBytes = readMaxResponseBytes(env);
-    const bodyBytes = await readHttpBody(bufferedReader, head.headers, head.rest, maxBytes);
-    const headers = buildResponseHeaders(head.headers);
-
-    let body: BodyInit = toArrayBuffer(bodyBytes);
-    if (isHtml(headers)) {
-      body = rewriteOnionHtml(decoder.decode(bodyBytes), targetUrl.toString(), viewerOrigin);
-      headers.set('content-type', ensureUtf8HtmlContentType(headers.get('content-type')));
-      headers.delete('content-length');
-    }
-
-    rewriteLocationHeader(headers, targetUrl.toString(), viewerOrigin);
-    headers.set('x-onion-viewer-target', targetUrl.toString());
-
+  if (request.method === 'HEAD') {
     return {
-      response: new Response(body, {
-        status: head.status,
-        statusText: head.statusText,
+      response: new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
         headers,
       }),
       targetUrl: targetUrl.toString(),
     };
-  } finally {
-    try {
-      reader.releaseLock();
-    } catch {
-      // The lock may already be released after EOF.
-    }
-
-    try {
-      writer.releaseLock();
-    } catch {
-      // The writer may already be closed.
-    }
-
-    await socket.close().catch(() => undefined);
-  }
-}
-
-async function buildHttpRequestBytes(request: Request, targetUrl: URL): Promise<Uint8Array> {
-  const body = await request.arrayBuffer();
-  const headers = new Headers(request.headers);
-  const outputHeaders = new Headers();
-
-  for (const [name, value] of headers) {
-    if (shouldForwardRequestHeader(name)) {
-      outputHeaders.set(name, value);
-    }
   }
 
-  outputHeaders.set('host', targetUrl.host);
-  outputHeaders.set('connection', 'close');
-  outputHeaders.set('accept-encoding', 'identity');
-  outputHeaders.set('user-agent', outputHeaders.get('user-agent') ?? 'Cloudflare Onion Viewer');
+  if (isHtml(headers)) {
+    const html = await readLimitedText(response, readPositiveInteger(env.MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES));
+    headers.set('content-type', ensureUtf8HtmlContentType(headers.get('content-type')));
+    headers.delete('content-length');
 
-  if (body.byteLength > 0) {
-    outputHeaders.set('content-length', String(body.byteLength));
-  } else {
-    outputHeaders.delete('content-length');
-  }
-
-  const path = `${targetUrl.pathname || '/'}${targetUrl.search}`;
-  const headerLines = [`${request.method} ${path} HTTP/1.1`];
-  for (const [name, value] of outputHeaders) {
-    headerLines.push(`${name}: ${value}`);
-  }
-
-  const head = encoder.encode(`${headerLines.join('\r\n')}\r\n\r\n`);
-  const bytes = new Uint8Array(head.byteLength + body.byteLength);
-  bytes.set(head);
-  bytes.set(new Uint8Array(body), head.byteLength);
-  return bytes;
-}
-
-async function readSocks5ConnectReply(reader: BufferedReader): Promise<Uint8Array> {
-  const head = await reader.readExactly(5);
-  const addrType = head[3];
-  const extraLength = addrType === 0x01 ? 3 + 2 : addrType === 0x03 ? head[4] + 2 : addrType === 0x04 ? 15 + 2 : 2;
-  const rest = await reader.readExactly(extraLength);
-  return concat(head, rest);
-}
-
-async function readHttpHead(reader: BufferedReader): Promise<HttpHead> {
-  let bytes = new Uint8Array(0);
-  while (true) {
-    const splitAt = indexOfHeaderEnd(bytes);
-    if (splitAt !== -1) {
-      const rawHead = decoder.decode(bytes.slice(0, splitAt));
-      const rest = bytes.slice(splitAt + 4);
-      const lines = rawHead.split('\r\n');
-      const statusLine = lines.shift() ?? '';
-      const match = /^HTTP\/\d(?:\.\d)?\s+(\d{3})(?:\s+(.*))?$/.exec(statusLine);
-      if (!match) {
-        throw new Error(`Invalid HTTP response status line: ${statusLine}`);
-      }
-
-      const headers = new Headers();
-      for (const line of lines) {
-        const separator = line.indexOf(':');
-        if (separator > 0) {
-          headers.append(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
-        }
-      }
-
-      return {
-        status: Number(match[1]),
-        statusText: match[2] ?? '',
+    return {
+      response: new Response(rewriteOnionHtml(html, targetUrl.toString(), viewerOrigin), {
+        status: response.status,
+        statusText: response.statusText,
         headers,
-        rest,
-      };
-    }
+      }),
+      targetUrl: targetUrl.toString(),
+    };
+  }
 
-    const { done, value } = await reader.read();
-    if (done || !value) {
-      throw new Error('Socket closed before HTTP headers were received.');
+  headers.delete('content-length');
+  return {
+    response: new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }),
+    targetUrl: targetUrl.toString(),
+  };
+}
+
+function getClient(env: TorFetchEnv): TorClient {
+  const key = JSON.stringify({
+    gateway: env.TOR_GATEWAY ?? '',
+    logLevel: env.TOR_LOG_LEVEL ?? 'warn',
+  });
+
+  if (clientState?.key === key) {
+    return clientState.client;
+  }
+
+  clientState?.client.close();
+  const gateway = splitGateways(env.TOR_GATEWAY);
+  const socketProvider = new CloudflareArtiSocketProvider();
+  clientState = {
+    key,
+    client: new TorClient({
+      gateway: gateway.length > 0 ? gateway : undefined,
+      log: new Log(),
+      logLevel: env.TOR_LOG_LEVEL ?? 'warn',
+      socketProvider,
+      storage: new storage.MemoryStorage(),
+    }),
+  };
+
+  return clientState.client;
+}
+
+async function buildTorFetchInit(request: Request, timeoutMs: number): Promise<FetchInit> {
+  const headers: Record<string, string> = {};
+  for (const [name, value] of request.headers) {
+    if (shouldForwardRequestHeader(name)) {
+      headers[name] = value;
     }
-    bytes = concat(bytes, value);
-    if (bytes.length > 128 * 1024) {
-      throw new Error('HTTP response headers are too large.');
-    }
+  }
+
+  headers['accept-encoding'] = 'identity';
+  headers['user-agent'] = headers['user-agent'] ?? 'Cloudflare TOR-js Onion Viewer';
+
+  const init: FetchInit = {
+    method: request.method,
+    headers,
+    signal: AbortSignal.timeout(timeoutMs),
+  };
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    init.body = new Uint8Array(await request.arrayBuffer());
+  }
+
+  return init;
+}
+
+class CloudflareArtiSocketProvider {
+  async connect(target: string): Promise<ArtiSocket> {
+    const { hostname, port } = parseTargetAddress(target);
+    const socket = connect({ hostname, port }, { allowHalfOpen: true });
+    await socket.opened;
+
+    return new ArtiSocket({
+      readable: socket.readable as ReadableStream<Uint8Array>,
+      writable: socket.writable as WritableStream<Uint8Array>,
+      closed: socket.closed.then(
+        () => ({ ok: true }),
+        (error) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }),
+      ),
+      closeWrite: async () => {
+        await socket.writable.getWriter().close();
+      },
+      close: () => {
+        socket.close().catch(() => undefined);
+      },
+    });
+  }
+
+  close(): void {
+    // TOR-js owns individual socket lifetimes. There is no shared Worker-side pool.
   }
 }
 
-async function readHttpBody(
-  reader: BufferedReader,
-  headers: Headers,
-  initial: Uint8Array,
-  maxBytes: number,
-): Promise<Uint8Array> {
-  const transferEncoding = headers.get('transfer-encoding')?.toLowerCase() ?? '';
-  if (transferEncoding.includes('chunked')) {
-    return decodeChunkedBody(await readToEnd(reader, initial, maxBytes));
+async function readLimitedText(response: Response, maxBytes: number): Promise<string> {
+  const body = response.body;
+  if (!body) {
+    return '';
   }
 
-  const contentLength = headers.get('content-length');
-  if (contentLength) {
-    const expected = Number(contentLength);
-    if (!Number.isInteger(expected) || expected < 0) {
-      throw new Error('Invalid response Content-Length.');
-    }
-    if (expected > maxBytes) {
-      throw new Error(`Response body exceeds the ${maxBytes} byte limit.`);
-    }
-    let bytes = initial;
-    while (bytes.length < expected) {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
       const { done, value } = await reader.read();
-      if (done || !value) {
-        throw new Error('Socket closed before response body completed.');
+      if (done) {
+        break;
       }
-      bytes = concat(bytes, value);
+
+      if (value) {
+        total += value.byteLength;
+        if (total > maxBytes) {
+          throw new Error(`Response body exceeds the ${maxBytes} byte limit.`);
+        }
+        chunks.push(value);
+      }
     }
-    return bytes.slice(0, expected);
+  } finally {
+    reader.releaseLock();
   }
 
-  return readToEnd(reader, initial, maxBytes);
-}
-
-async function readToEnd(reader: BufferedReader, initial: Uint8Array, maxBytes: number): Promise<Uint8Array> {
-  let bytes = initial;
-  while (true) {
-    if (bytes.length > maxBytes) {
-      throw new Error(`Response body exceeds the ${maxBytes} byte limit.`);
-    }
-
-    const { done, value } = await reader.read();
-    if (done) {
-      return bytes;
-    }
-    if (value) {
-      bytes = concat(bytes, value);
-    }
-  }
-}
-
-function decodeChunkedBody(bytes: Uint8Array): Uint8Array {
+  const merged = new Uint8Array(total);
   let offset = 0;
-  let decoded = new Uint8Array(0);
-
-  while (offset < bytes.length) {
-    const lineEnd = indexOfCrlf(bytes, offset);
-    if (lineEnd === -1) {
-      throw new Error('Invalid chunked response: missing chunk size.');
-    }
-
-    const sizeLine = decoder.decode(bytes.slice(offset, lineEnd)).split(';', 1)[0].trim();
-    const chunkSize = Number.parseInt(sizeLine, 16);
-    if (!Number.isFinite(chunkSize)) {
-      throw new Error('Invalid chunked response: bad chunk size.');
-    }
-
-    offset = lineEnd + 2;
-    if (chunkSize === 0) {
-      return decoded;
-    }
-
-    if (offset + chunkSize + 2 > bytes.length) {
-      throw new Error('Invalid chunked response: truncated chunk.');
-    }
-
-    decoded = concat(decoded, bytes.slice(offset, offset + chunkSize));
-    offset += chunkSize + 2;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
   }
 
-  throw new Error('Invalid chunked response: missing terminating chunk.');
+  return new TextDecoder().decode(merged);
 }
 
 function buildResponseHeaders(upstreamHeaders: Headers): Headers {
@@ -333,8 +194,6 @@ function buildResponseHeaders(upstreamHeaders: Headers): Headers {
     }
   }
 
-  headers.delete('transfer-encoding');
-  headers.delete('content-encoding');
   headers.delete('content-length');
   headers.set('cache-control', 'no-store');
   headers.set('content-security-policy', "default-src 'self' 'unsafe-inline' data: blob:; img-src 'self' data: blob:; media-src 'self' data: blob:; form-action 'self'; frame-ancestors 'none'");
@@ -365,8 +224,6 @@ function shouldForwardResponseHeader(name: string): boolean {
     'content-encoding',
     'content-length',
     'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
     'te',
     'trailer',
     'transfer-encoding',
@@ -399,45 +256,29 @@ function ensureUtf8HtmlContentType(contentType: string | null): string {
   return /charset=/i.test(contentType) ? contentType : `${contentType}; charset=utf-8`;
 }
 
-function readMaxResponseBytes(env: TorFetchEnv): number {
-  const configured = Number(env.MAX_RESPONSE_BYTES);
-  return Number.isInteger(configured) && configured > 0 ? configured : DEFAULT_MAX_RESPONSE_BYTES;
+function readPositiveInteger(rawValue: string | undefined, fallback: number): number {
+  const value = Number(rawValue);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
-function concat(left: Uint8Array<ArrayBufferLike>, right: Uint8Array<ArrayBufferLike>): Bytes {
-  const bytes = new Uint8Array(left.length + right.length);
-  bytes.set(left);
-  bytes.set(right, left.length);
-  return bytes;
+function splitGateways(rawValue: string | undefined): string[] {
+  return rawValue
+    ?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean) ?? [];
 }
 
-function copyBytes(value: Uint8Array<ArrayBufferLike>): Bytes {
-  const bytes = new Uint8Array(value.length);
-  bytes.set(value);
-  return bytes;
-}
-
-function toArrayBuffer(value: Uint8Array<ArrayBufferLike>): ArrayBuffer {
-  const bytes = copyBytes(value);
-  return bytes.buffer;
-}
-
-function indexOfHeaderEnd(bytes: Uint8Array): number {
-  for (let index = 0; index <= bytes.length - 4; index += 1) {
-    if (bytes[index] === 13 && bytes[index + 1] === 10 && bytes[index + 2] === 13 && bytes[index + 3] === 10) {
-      return index;
-    }
+function parseTargetAddress(target: string): { hostname: string; port: number } {
+  const lastColon = target.lastIndexOf(':');
+  if (lastColon <= 0) {
+    throw new Error(`Invalid Tor relay address: ${target}`);
   }
 
-  return -1;
-}
-
-function indexOfCrlf(bytes: Uint8Array, start: number): number {
-  for (let index = start; index <= bytes.length - 2; index += 1) {
-    if (bytes[index] === 13 && bytes[index + 1] === 10) {
-      return index;
-    }
+  const hostname = target.slice(0, lastColon);
+  const port = Number(target.slice(lastColon + 1));
+  if (!hostname || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid Tor relay address: ${target}`);
   }
 
-  return -1;
+  return { hostname, port };
 }
