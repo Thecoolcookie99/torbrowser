@@ -65,3 +65,13 @@ test('rewriteOnionHtml rewrites onion links through the gateway', () => {
   assert.match(result, /href="\/http:\/\/example\.onion\/login"/);
   assert.match(result, /src="\/http:\/\/example\.onion\/logo\.png"/);
 });
+
+test('rewriteOnionHtml strips Cloudflare Insights beacon scripts from proxied onion pages', () => {
+  const result = rewriteOnionHtml(
+    '<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v3d52b47920f24c319d37e2661827c42b1787588026925"></script><a href="https://example.onion/login">Go</a>',
+    '/http://example.onion',
+  );
+
+  assert.doesNotMatch(result, /static\.cloudflareinsights\.com\/beacon\.min\.js/i);
+  assert.match(result, /href="\/http:\/\/example\.onion\/login"/);
+});

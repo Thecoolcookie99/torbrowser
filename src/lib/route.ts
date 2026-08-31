@@ -32,7 +32,9 @@ export function parseGatewayPath(url: URL): ParsedGatewayPath {
 export function rewriteOnionHtml(html: string, gatewayPrefix: string): string {
   const base = gatewayPrefix.endsWith('/') ? gatewayPrefix.slice(0, -1) : gatewayPrefix;
 
-  return html.replace(/(href|src)=(['"])((?:https?:)?\/\/[^'"]+)(\2)/gi, (match, attr, quote, target) => {
+  const sanitized = html.replace(/<script\b[^>]*\bsrc=(['"])(https?:)?\/\/[^'"\s>]+(?:cloudflareinsights|static\.cloudflareinsights|beacon\.min\.js)[^'"\s>]*\1[^>]*><\/script>/gi, '');
+
+  return sanitized.replace(/(href|src)=(['"])((?:https?:)?\/\/[^'"]+)(\2)/gi, (match, attr, quote, target) => {
     try {
       const url = new URL(target);
       if (!/\.onion(?:\.|$)/i.test(url.hostname)) {
