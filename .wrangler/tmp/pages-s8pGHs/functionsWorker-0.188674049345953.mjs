@@ -14,14 +14,14 @@ var __publicField = (obj, key, value) => {
   return value;
 };
 
-// ../.wrangler/tmp/bundle-0lgpJe/strip-cf-connecting-ip-header.js
+// ../.wrangler/tmp/bundle-np97zS/strip-cf-connecting-ip-header.js
 function stripCfConnectingIPHeader(input, init2) {
   const request = new Request(input, init2);
   request.headers.delete("CF-Connecting-IP");
   return request;
 }
 var init_strip_cf_connecting_ip_header = __esm({
-  "../.wrangler/tmp/bundle-0lgpJe/strip-cf-connecting-ip-header.js"() {
+  "../.wrangler/tmp/bundle-np97zS/strip-cf-connecting-ip-header.js"() {
     "use strict";
     __name(stripCfConnectingIPHeader, "stripCfConnectingIPHeader");
     globalThis.fetch = new Proxy(globalThis.fetch, {
@@ -2442,7 +2442,7 @@ var init_crypto2 = __esm({
   }
 });
 
-// ../node_modules/tor-js/dist/entryPoints/wasm-cdn/index.js
+// ../vendor/tor-js/dist/entryPoints/wasm-cdn/index.js
 function parseAddress2(s) {
   const malformed = /* @__PURE__ */ __name(() => new Error(`address: malformed (expected <ip>:<port>:<certhash> or [ipv6]:<port>:<certhash>): ${s}`), "malformed");
   let ip;
@@ -2753,7 +2753,7 @@ async function openStream(addr, opts) {
   }
 }
 function init(log_level) {
-  var ptr0 = isLikeNone(log_level) ? 0 : passStringToWasm0(log_level, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+  var ptr0 = isLikeNone(log_level) ? 0 : passStringToWasm0(log_level, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
   var len0 = WASM_VECTOR_LEN;
   const ret = wasm.init(ptr0, len0);
   if (ret[1]) {
@@ -2764,7 +2764,7 @@ function setLogCallback(callback) {
   wasm.setLogCallback(callback);
 }
 function setLogLevel(level) {
-  const ptr0 = passStringToWasm0(level, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+  const ptr0 = passStringToWasm0(level, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
   const len0 = WASM_VECTOR_LEN;
   const ret = wasm.setLogLevel(ptr0, len0);
   if (ret[1]) {
@@ -2780,7 +2780,7 @@ function __wbg_get_imports() {
     },
     __wbg_String_8564e559799eccda: function(arg0, arg1) {
       const ret = String(arg1);
-      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
       const len1 = WASM_VECTOR_LEN;
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
@@ -2792,7 +2792,7 @@ function __wbg_get_imports() {
     },
     __wbg___wbindgen_debug_string_0accd80f45e5faa2: function(arg0, arg1) {
       const ret = debugString(arg1);
-      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
       const len1 = WASM_VECTOR_LEN;
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
@@ -2835,7 +2835,7 @@ function __wbg_get_imports() {
     __wbg___wbindgen_string_get_72bdf95d3ae505b1: function(arg0, arg1) {
       const obj = arg1;
       const ret = typeof obj === "string" ? obj : void 0;
-      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
       var len1 = WASM_VECTOR_LEN;
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
@@ -2956,7 +2956,7 @@ function __wbg_get_imports() {
         deferred0_1 = arg1;
         console.error(getStringFromWasm0(arg0, arg1));
       } finally {
-        wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
+        wasm.__wbindgen_free_command_export(deferred0_0, deferred0_1, 1);
       }
     },
     __wbg_from_d300fe49deab18f5: function(arg0) {
@@ -3139,7 +3139,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_389f18f337614014___convert__closures_____invoke___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -3274,7 +3274,7 @@ function __wbg_get_imports() {
     },
     __wbg_stack_3b0d974bbf31e44f: function(arg0, arg1) {
       const ret = arg1.stack;
-      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
       const len1 = WASM_VECTOR_LEN;
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
@@ -3344,15 +3344,15 @@ function __wbg_get_imports() {
       return ret;
     },
     __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue______true_);
       return ret;
     },
     __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_389f18f337614014___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_d0da5adb6befe1a9___JsError___true_);
       return ret;
     },
     __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_389f18f337614014___convert__closures_____invoke_______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke_______true_);
       return ret;
     },
     __wbindgen_cast_0000000000000004: function(arg0, arg1) {
@@ -3378,23 +3378,23 @@ function __wbg_get_imports() {
     "./tor_js_bg.js": import0
   };
 }
-function wasm_bindgen_389f18f337614014___convert__closures_____invoke_______true_(arg0, arg1) {
-  wasm.wasm_bindgen_389f18f337614014___convert__closures_____invoke_______true_(arg0, arg1);
+function wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke_______true_(arg0, arg1) {
+  wasm.wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke_______true_(arg0, arg1);
 }
-function wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue______true_(arg0, arg1, arg2);
+function wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_389f18f337614014___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_389f18f337614014___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_d0da5adb6befe1a9___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_d0da5adb6befe1a9___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_389f18f337614014___convert__closures_____invoke___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_389f18f337614014___convert__closures_____invoke___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 function addToExternrefTable0(obj) {
-  const idx = wasm.__externref_table_alloc();
+  const idx = wasm.__externref_table_alloc_command_export();
   wasm.__wbindgen_externrefs.set(idx, obj);
   return idx;
 }
@@ -3483,7 +3483,7 @@ function handleError(f, args) {
     return f.apply(this, args);
   } catch (e) {
     const idx = addToExternrefTable0(e);
-    wasm.__wbindgen_exn_store(idx);
+    wasm.__wbindgen_exn_store_command_export(idx);
   }
 }
 function isLikeNone(x) {
@@ -3504,7 +3504,7 @@ function makeMutClosure(arg0, arg1, f) {
   }, "real");
   real._wbg_cb_unref = () => {
     if (--state.cnt === 0) {
-      wasm.__wbindgen_destroy_closure(state.a, state.b);
+      wasm.__wbindgen_destroy_closure_command_export(state.a, state.b);
       state.a = 0;
       CLOSURE_DTORS.unregister(state);
     }
@@ -3545,7 +3545,7 @@ function passStringToWasm0(arg, malloc, realloc) {
 }
 function takeFromExternrefTable0(idx) {
   const value = wasm.__wbindgen_externrefs.get(idx);
-  wasm.__externref_table_dealloc(idx);
+  wasm.__externref_table_dealloc_command_export(idx);
   return value;
 }
 function decodeText(ptr, len) {
@@ -4122,7 +4122,7 @@ async function decryptAesGcm(encrypted, keyBytes) {
 }
 var __defProp2, __getOwnPropNames2, __esm2, __export2, init_address, MULTIBASE_BASE64URL_NOPAD, MULTIHASH_SHA256_CODE, MULTIHASH_SHA256_LEN, init_certhash, init_errors, init_dist, FRAME_DATA, FRAME_FIN, FRAME_RESET, FRAME_STOP_SENDING, FRAME_MAX_STREAM_DATA, MAX_WEBRTC_FRAME_SIZE, MAX_FRAME_PAYLOAD, MAX_OFFSET, ProtocolViolation, CODE_TO_NUM, NUM_TO_CODE, init_framing, CTRL_CONNECTION_CLOSE, CTRL_HELLO, CTRL_MAX_DATA, CTRL_MAX_STREAMS, WIRE_VERSION, init_control, DEFAULT_INITIAL_MAX_STREAM_DATA, DEFAULT_INITIAL_MAX_DATA, DEFAULT_INITIAL_MAX_STREAMS, Wakeable, ConnFlow, StreamFlow, init_flow, LOCAL_SEND_BUFFER_LOW, Wakeable2, KpsStream, init_stream_core, WEBRTC_MAX_DATAGRAM, CONTROL_LABEL, CONTROL_ID, DATAGRAM_LABEL, DATAGRAM_ID, DEFAULT_HELLO_TIMEOUT_MS, MAX_DATAGRAM_QUEUE, ConnCore, init_conn_core, init_sdp, init_webrtc, DEFAULT_TIMEOUT, RTCChannelAdapter, Connection, init_connection, init_open_stream, dist_exports, init_dist2, kpsDial_exports, kpsDial, init_kpsDial, IntoUnderlyingByteSource, IntoUnderlyingSink, IntoUnderlyingSource, TorClient, TorClientOptions, __wbindgen_enum_ReadableStreamType, IntoUnderlyingByteSourceFinalization, IntoUnderlyingSinkFinalization, IntoUnderlyingSourceFinalization, TorClientFinalization, TorClientOptionsFinalization, CLOSURE_DTORS, cachedDataViewMemory0, cachedUint8ArrayMemory0, cachedTextDecoder, MAX_SAFARI_DECODE_BYTES, numBytesDecoded, cachedTextEncoder, WASM_VECTOR_LEN, wasmModule, wasmInstance, wasm, LEVEL_ORDER, logListeners, initPromise, customWasmUrl, wasmSourceProvider, storage_exports, MemoryStorage, IndexedDBStorage, promise, FilesystemStorage, Log, enc, dec, OPEN_STREAM_TIMEOUT_MS, KpsGateway, HAS_DENO, HAS_NODE, PREFERRED_GATEWAYS, DEFAULT_TIMING, ArtiSocket, ArtiSocketProvider, TorClient2, CACHE_KEY;
 var init_wasm_cdn = __esm({
-  "../node_modules/tor-js/dist/entryPoints/wasm-cdn/index.js"() {
+  "../vendor/tor-js/dist/entryPoints/wasm-cdn/index.js"() {
     init_functionsRoutes_0_3080644410527208();
     init_strip_cf_connecting_ip_header();
     init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
@@ -5613,7 +5613,7 @@ var init_wasm_cdn = __esm({
        * @returns {Promise<any>}
        */
       fetch(url, init2) {
-        const ptr0 = passStringToWasm0(url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const ptr0 = passStringToWasm0(url, wasm.__wbindgen_malloc_command_export, wasm.__wbindgen_realloc_command_export);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.torclient_fetch(this.__wbg_ptr, ptr0, len0, init2);
         return ret;
@@ -5707,10 +5707,10 @@ var init_wasm_cdn = __esm({
     __name(setLogCallback, "setLogCallback");
     __name(setLogLevel, "setLogLevel");
     __name(__wbg_get_imports, "__wbg_get_imports");
-    __name(wasm_bindgen_389f18f337614014___convert__closures_____invoke_______true_, "wasm_bindgen_389f18f337614014___convert__closures_____invoke_______true_");
-    __name(wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue______true_, "wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue______true_");
-    __name(wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_389f18f337614014___JsError___true_, "wasm_bindgen_389f18f337614014___convert__closures_____invoke___wasm_bindgen_389f18f337614014___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_389f18f337614014___JsError___true_");
-    __name(wasm_bindgen_389f18f337614014___convert__closures_____invoke___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined_______true_, "wasm_bindgen_389f18f337614014___convert__closures_____invoke___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined___js_sys_19c10af861cdcb72___Function_fn_wasm_bindgen_389f18f337614014___JsValue_____wasm_bindgen_389f18f337614014___sys__Undefined_______true_");
+    __name(wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke_______true_, "wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke_______true_");
+    __name(wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue______true_, "wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue______true_");
+    __name(wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_d0da5adb6befe1a9___JsError___true_, "wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___wasm_bindgen_d0da5adb6befe1a9___JsValue__core_9b3796e30d99ddb7___result__Result_____wasm_bindgen_d0da5adb6befe1a9___JsError___true_");
+    __name(wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined_______true_, "wasm_bindgen_d0da5adb6befe1a9___convert__closures_____invoke___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined___js_sys_34755530918702e4___Function_fn_wasm_bindgen_d0da5adb6befe1a9___JsValue_____wasm_bindgen_d0da5adb6befe1a9___sys__Undefined_______true_");
     __wbindgen_enum_ReadableStreamType = ["bytes"];
     IntoUnderlyingByteSourceFinalization = typeof FinalizationRegistry === "undefined" ? { register: () => {
     }, unregister: () => {
@@ -5731,7 +5731,7 @@ var init_wasm_cdn = __esm({
     __name(_assertClass, "_assertClass");
     CLOSURE_DTORS = typeof FinalizationRegistry === "undefined" ? { register: () => {
     }, unregister: () => {
-    } } : new FinalizationRegistry((state) => wasm.__wbindgen_destroy_closure(state.a, state.b));
+    } } : new FinalizationRegistry((state) => wasm.__wbindgen_destroy_closure_command_export(state.a, state.b));
     __name(debugString, "debugString");
     __name(getArrayU8FromWasm0, "getArrayU8FromWasm0");
     cachedDataViewMemory0 = null;
@@ -6530,8 +6530,8 @@ Host: ${target}\r
             `TorClient: in the browser, you must configure a gateway (KPS address "ip:port:certhash") because browsers can't open regular TCP sockets.`
           );
         }
-        this.log = options.log ?? new Log({ rawLog: () => {
-        } });
+        this.log = options.log ?? (options.logLevel ? new Log() : new Log({ rawLog: () => {
+        } }));
         this.clientPromise = this.bootstrap(options);
         this.clientPromise.catch(() => {
         });
@@ -6649,7 +6649,7 @@ Host: ${target}\r
           if (cached) {
             const bytes = base64ToBytes(cached);
             const hash2 = await sha256hex(bytes);
-            if (hash2 === "952bf7f4efcd5b4e97be0e3a9f0dd93e16003891ca90600e0bac7eaa407faecb") {
+            if (hash2 === "8279f40f3efa514ba9efe446ec9e18fb1ba02953c8af4884f2c6823700f2f82f") {
               return bytes;
             }
             await cache.delete(CACHE_KEY);
@@ -6657,7 +6657,7 @@ Host: ${target}\r
         } catch {
         }
       }
-      const hashBytes = hexToBytes("952bf7f4efcd5b4e97be0e3a9f0dd93e16003891ca90600e0bac7eaa407faecb");
+      const hashBytes = hexToBytes("8279f40f3efa514ba9efe446ec9e18fb1ba02953c8af4884f2c6823700f2f82f");
       const hashHash = await sha256hex(hashBytes);
       const hashHashPrefix = hashHash.slice(0, 2);
       const githubBase = `https://raw.githubusercontent.com/voltrevo/arti/hash-artifacts/`;
@@ -6682,8 +6682,8 @@ Host: ${target}\r
               bytes = await decryptAesGcm(bytes, hashBytes);
             }
             const hash2 = await sha256hex(bytes);
-            if (hash2 !== "952bf7f4efcd5b4e97be0e3a9f0dd93e16003891ca90600e0bac7eaa407faecb") {
-              throw new Error(`SHA256 mismatch: expected ${"952bf7f4efcd5b4e97be0e3a9f0dd93e16003891ca90600e0bac7eaa407faecb"}, got ${hash2}`);
+            if (hash2 !== "8279f40f3efa514ba9efe446ec9e18fb1ba02953c8af4884f2c6823700f2f82f") {
+              throw new Error(`SHA256 mismatch: expected ${"8279f40f3efa514ba9efe446ec9e18fb1ba02953c8af4884f2c6823700f2f82f"}, got ${hash2}`);
             }
             const result = new Uint8Array(bytes);
             if (cache) {
@@ -6907,7 +6907,7 @@ var init_route = __esm({
 
 // ../src/lib/tor.ts
 import { connect } from "cloudflare:sockets";
-import torWasmModule from "./00a3d0fdb1254a2a92f6ad8a4925bcfe3a3cc352-tor_js_bg.wasm";
+import torWasmModule from "./9bea5e1c0c4c970e281a188095944c91b532f679-tor_js_bg.wasm";
 async function fetchThroughTor(request, targetUrl, env2, viewerOrigin) {
   const client = createClient(env2);
   let closeClient = true;
@@ -7386,14 +7386,14 @@ var init_functionsRoutes_0_3080644410527208 = __esm({
   }
 });
 
-// ../.wrangler/tmp/bundle-0lgpJe/middleware-loader.entry.ts
+// ../.wrangler/tmp/bundle-np97zS/middleware-loader.entry.ts
 init_functionsRoutes_0_3080644410527208();
 init_strip_cf_connecting_ip_header();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_console();
 init_performance2();
 
-// ../.wrangler/tmp/bundle-0lgpJe/middleware-insertion-facade.js
+// ../.wrangler/tmp/bundle-np97zS/middleware-insertion-facade.js
 init_functionsRoutes_0_3080644410527208();
 init_strip_cf_connecting_ip_header();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
@@ -7909,7 +7909,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env2, _ctx, middlewareCtx
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// ../.wrangler/tmp/bundle-0lgpJe/middleware-insertion-facade.js
+// ../.wrangler/tmp/bundle-np97zS/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -7946,7 +7946,7 @@ function __facade_invoke__(request, env2, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// ../.wrangler/tmp/bundle-0lgpJe/middleware-loader.entry.ts
+// ../.wrangler/tmp/bundle-np97zS/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
