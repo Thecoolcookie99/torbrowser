@@ -1,25 +1,29 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 
 try {
-  // Only build tor-js if it hasn't been built yet (check for dist directory)
-  if (existsSync('tor-js/dist/tor_js_bg.wasm')) {
-    console.log('✅ tor-js WASM already built, skipping...');
-  } else {
-    try {
-      console.log('🔨 Building Tor JS WASM...');
-      execSync('npm run build', { cwd: 'tor-js', stdio: 'inherit' });
-    } catch (err) {
-      console.log('⚠️  Tor JS build skipped (requires bash/Unix environment)');
-    }
+  if (!existsSync('vendor/tor-js/dist/tor_js_bg.wasm')) {
+    throw new Error('Missing vendor/tor-js/dist/tor_js_bg.wasm. Run npm install after restoring the vendored tor-js package.');
   }
-  
-  console.log('🔨 Compiling TypeScript...');
-  execSync('tsc -p tsconfig.json --outDir dist', { stdio: 'inherit' });
-  
-  console.log('✅ Build complete! Output in ./dist');
+
+  mkdirSync('public', { recursive: true });
+  copyIfChanged('frontend/index.html', 'public/index.html');
+
+  console.log('Checking TypeScript...');
+  execSync('tsc --noEmit -p tsconfig.json', { stdio: 'inherit' });
+
+  console.log('Build complete. Cloudflare Pages output is ./public');
 } catch (err) {
-  console.error('❌ Build failed:', err.message);
+  console.error('Build failed:', err instanceof Error ? err.message : String(err));
   process.exit(1);
+}
+
+function copyIfChanged(sourcePath, targetPath) {
+  const source = readFileSync(sourcePath);
+  const target = existsSync(targetPath) ? readFileSync(targetPath) : null;
+
+  if (!target || !source.equals(target)) {
+    writeFileSync(targetPath, source);
+  }
 }

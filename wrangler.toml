@@ -1,13 +1,9 @@
 name = "tor-cloudflare-gateway"
-type = "javascript"
-compatibility_date = "2025-08-01"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-08-31"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
 FETCH_TIMEOUT_MS = "180000"
 MAX_RESPONSE_BYTES = "10485760"
 TOR_LOG_LEVEL = "warn"
-
-[assets]
-directory = "./public"
-binding = "ASSETS"

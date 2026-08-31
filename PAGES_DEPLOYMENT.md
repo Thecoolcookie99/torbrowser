@@ -1,112 +1,79 @@
-# Cloudflare Pages Migration Guide
+# Cloudflare Pages Deployment
 
-This project has been converted from a Cloudflare Worker to a Cloudflare Pages deployment.
+This project is configured for Cloudflare Pages with Pages Functions.
 
-## Key Changes
+## Structure
 
-### Directory Structure
-- **`functions/`** - Server-side code using Pages Functions (replaces `src/worker.ts`)
-  - `[[path]].ts` - Catch-all route handler for dynamic routing
-- **`public/`** - Static assets served by Pages
-  - `_routes.json` - Routing configuration
+- `frontend/` is the editable source for the static UI.
+- `public/` is the Cloudflare Pages build output directory.
+- `functions/` contains Pages Functions source files.
+- `src/` contains shared TypeScript used by the Pages Function.
+- `vendor/tor-js/` contains the prebuilt `tor-js` package and WASM used by the function bundle.
 
-### Configuration Files
-- **`wrangler.jsonc`** - Updated for Pages deployment (was Workers config)
-- **`package.json`** - Updated scripts for Pages (`wrangler pages dev`, `wrangler pages deploy`)
+## Local Development
 
-## Development
-
-### Local Development
 ```bash
 npm install
+npm run build
 npm run dev
 ```
 
-The dev server will start at `http://localhost:8788` by default.
+`npm run build` copies `frontend/index.html` to `public/index.html` when it changes and runs TypeScript checks. Cloudflare Pages compiles `functions/**/*.ts` during `wrangler pages dev` and deployment.
 
-### Building
-```bash
-npm run build
-npm run typecheck
+## Cloudflare Pages Settings
+
+For the Pages Git integration, use:
+
+- Build command: `npm run build`
+- Build output directory: `public`
+- Root directory: `/`
+
+The Wrangler config also defines the Pages output directory:
+
+```jsonc
+{
+  "name": "tor-cloudflare-gateway",
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-08-31",
+  "compatibility_flags": ["nodejs_compat"]
+}
 ```
 
-### Testing
+`pages_build_output_dir` is required for Cloudflare Pages to apply the Wrangler configuration to production and preview deployments. The Node.js compatibility setting is needed because `tor-js` imports Node built-ins while Wrangler bundles the Pages Function.
+
+## Deploy
+
 ```bash
-npm test
-npm run mock:socks
+npm run deploy
 ```
 
-## Deployment
-
-### Prerequisites
-- Wrangler CLI v3.101.0 or later
-- Cloudflare account with Pages project
-
-### Deploy to Cloudflare Pages
-
-#### Option 1: Direct Deployment
-```bash
-wrangler pages deploy
-```
-
-#### Option 2: GitHub Integration (Recommended)
-1. Push to GitHub
-2. Connect your GitHub repository to Cloudflare Pages
-3. Configure build settings:
-   - **Build command**: `npm run build` (if needed)
-   - **Build output directory**: `dist` (if you're building a static site)
-   - **Root directory**: `/` (default)
-4. Cloudflare will automatically deploy on every push
-
-#### Option 3: Via Cloudflare Dashboard
-1. Go to your Cloudflare Pages project
-2. Click "Settings" → "Deployments"
-3. Use the direct upload option
+The GitHub Actions workflow also installs dependencies, runs `npm run build`, and deploys `public` to the `tor-cloudflare-gateway` Pages project on pushes to `main`.
 
 ## Environment Variables
 
-Set these in your Cloudflare Pages project settings or in `wrangler.jsonc`:
+These defaults are set in `wrangler.jsonc` and `wrangler.toml`:
 
 ```json
-"vars": {
+{
   "FETCH_TIMEOUT_MS": "180000",
   "MAX_RESPONSE_BYTES": "10485760",
   "TOR_LOG_LEVEL": "warn"
 }
 ```
 
+Override them in the Cloudflare Pages dashboard only if the dashboard is your source of truth for project configuration.
+
 ## Routing
 
-The `_routes.json` file controls which requests are handled by Functions vs. served as static assets:
-- **Included** (`"include": ["/*"]`) - All routes go to Functions by default
-- **Excluded** - Static assets are served directly from the public folder
+`public/_routes.json` sends requests through Pages Functions. The catch-all function at `functions/[[path]].ts` handles:
 
-Adjust the exclude patterns if you have additional static files.
-
-## Pages Functions
-
-The catch-all route `functions/[[path]].ts` handles all requests and:
-1. Routes `/api/resolve` to the resolution handler
-2. Routes `/view/*` to the viewer handler
-3. Routes `/` and `/index.html` to the home page
-4. Falls back to static asset serving
+- `/api/resolve`
+- `/view/*`
+- `/` and `/index.html`
+- static asset fallback through `env.ASSETS.fetch()`
 
 ## Troubleshooting
 
-### "ASSETS binding not found"
-Ensure `public/_routes.json` exists and the assets directory is properly configured in `wrangler.jsonc`.
-
-### Build Failures
-Run `npm run typecheck` locally to catch TypeScript errors before deployment.
-
-### Environment Variables Not Loading
-1. Check Cloudflare Pages project settings
-2. Verify `wrangler.jsonc` `vars` section
-3. Use `wrangler pages dev` to test locally
-
-## Migration from Workers
-
-If you need to revert to Workers deployment:
-- Use `git checkout HEAD -- src/worker.ts wrangler.jsonc package.json`
-- Remove the `functions/` directory
-- Update scripts: `wrangler dev` and `wrangler deploy`
+- If Cloudflare says the Wrangler config is invalid, confirm `pages_build_output_dir` is present.
+- If bundling fails on Node built-ins such as `fs`, `stream`, `net`, or `crypto`, confirm the Pages deployment is reading `wrangler.jsonc` and applying the compatibility date/flags.
+- If the UI looks stale, run `npm run build` so `frontend/index.html` is copied to `public/index.html`.
