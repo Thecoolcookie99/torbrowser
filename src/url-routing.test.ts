@@ -14,18 +14,24 @@ test('public URLs stay direct', () => {
   assert.equal(resolveLoadUrl('example.com/path?x=1'), 'https://example.com/path?x=1');
 });
 
-test('onion URLs are encoded into same-origin viewer paths', () => {
+test('onion URLs are routed into same-origin mirrored viewer paths', () => {
   const result = resolveLoadUrl('example.onion/path?x=1');
 
-  assert.match(result, /^\/view\//);
+  assert.equal(result, '/view/http/example.onion/path?x=1');
   assert.equal(parseViewerTarget(new URL(result, 'https://viewer.example'))?.toString(), 'http://example.onion/path?x=1');
 });
 
 test('viewer URL can include an absolute origin', () => {
   const result = resolveLoadUrl('http://example.onion/', 'https://viewer.example');
 
-  assert.match(result, /^https:\/\/viewer\.example\/view\//);
+  assert.equal(result, 'https://viewer.example/view/http/example.onion/');
   assert.equal(parseViewerTarget(new URL(result))?.toString(), 'http://example.onion/');
+});
+
+test('mirrored viewer routes preserve target paths and queries', () => {
+  const target = parseViewerTarget(new URL('https://viewer.example/view/http/example.onion/docs/logo.png?x=1'));
+
+  assert.equal(target?.toString(), 'http://example.onion/docs/logo.png?x=1');
 });
 
 test('legacy /http:// routes are still parsed for compatibility', () => {
@@ -41,8 +47,8 @@ test('rewriteOnionHtml rewrites onion links and assets relative to the target pa
     'https://viewer.example',
   );
 
-  assert.match(result, /href="https:\/\/viewer\.example\/view\//);
-  assert.match(result, /src="https:\/\/viewer\.example\/view\//);
+  assert.match(result, /href="https:\/\/viewer\.example\/view\/http\/example\.onion\/login"/);
+  assert.match(result, /src="https:\/\/viewer\.example\/view\/http\/example\.onion\/docs\/logo\.png"/);
   assert.match(result, /href="https:\/\/public\.example\/"/);
   assert.doesNotMatch(result, /href="\/login"/);
   assert.doesNotMatch(result, /src="logo\.png"/);
@@ -59,13 +65,19 @@ test('srcset and css url values are rewritten through viewer paths', () => {
   const srcset = rewriteSrcset('small.png 1x, /large.png 2x', base);
   const html = rewriteOnionHtml('<style>.hero{background:url("/hero.png")}</style>', base);
 
-  assert.match(srcset, /^\/view\/.+ 1x, \/view\/.+ 2x$/);
-  assert.match(html, /background:url\("\/view\//);
+  assert.equal(srcset, '/view/http/example.onion/assets/small.png 1x, /view/http/example.onion/large.png 2x');
+  assert.match(html, /background:url\("\/view\/http\/example\.onion\/hero\.png"\)/);
 });
 
-test('encoded viewer paths are stable and parseable', () => {
+test('mirrored viewer paths are stable and parseable', () => {
   const path = makeViewerPath('http://example.onion/a b/?q=c+d');
 
-  assert.match(path, /^\/view\/[A-Za-z0-9_-]+$/);
+  assert.equal(path, '/view/http/example.onion/a%20b/?q=c+d');
   assert.equal(parseViewerTarget(new URL(path, 'https://viewer.example'))?.toString(), 'http://example.onion/a%20b/?q=c+d');
+});
+
+test('legacy encoded viewer paths remain parseable', () => {
+  const legacyPath = `/view/${Buffer.from('http://example.onion/legacy?x=1').toString('base64url')}`;
+
+  assert.equal(parseViewerTarget(new URL(legacyPath, 'https://viewer.example'))?.toString(), 'http://example.onion/legacy?x=1');
 });

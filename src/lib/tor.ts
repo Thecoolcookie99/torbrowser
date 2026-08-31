@@ -28,11 +28,6 @@ export type TorFetchResult = {
   targetUrl: string;
 };
 
-type ClientState = {
-  key: string;
-  client: TorClient;
-};
-
 export async function fetchThroughTor(request: Request, targetUrl: URL, env: TorFetchEnv, viewerOrigin: string): Promise<TorFetchResult> {
   const client = createClient(env);
   let closeClient = true;
@@ -71,9 +66,20 @@ export async function fetchThroughTor(request: Request, targetUrl: URL, env: Tor
     }
 
     headers.delete('content-length');
-    closeClient = response.body === null;
+    if (!response.body) {
+      return {
+        response: new Response(null, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        }),
+        targetUrl: targetUrl.toString(),
+      };
+    }
+
+    closeClient = false;
     return {
-      response: new Response(closeClient ? null : closeWhenStreamEnds(response.body, () => client.close()), {
+      response: new Response(closeWhenStreamEnds(response.body, () => client.close()), {
         status: response.status,
         statusText: response.statusText,
         headers,

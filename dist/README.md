@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "tor-cloudflare-gateway" generated at 2026-08-31T07:29:10.014Z.
