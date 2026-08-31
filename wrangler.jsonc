@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tor-cloudflare-gateway",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TOR_GATEWAY",
+        "class_name": "TorGatewayDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["TorGatewayDurableObject"]
+    }
+  ],
+  "assets": {
+    "directory": "./frontend",
+    "binding": "ASSETS"
+  }
+}

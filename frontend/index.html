@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tor Onion Gateway</title>
+    <style>
+      body { font-family: sans-serif; max-width: 780px; margin: 2rem auto; padding: 1rem; }
+      form { display: grid; gap: 0.75rem; }
+      input { padding: 0.75rem; font-size: 1rem; }
+      button { padding: 0.8rem 1rem; font-size: 1rem; }
+      code { background: #f3f4f6; padding: 0.1rem 0.3rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Tor Onion Gateway</h1>
+    <p>Visit a hidden service using the gateway route:</p>
+    <code>/onion/example.onion/path</code>
+    <form id="gatewayForm">
+      <input id="url" type="text" value="https://mywebsite.com/onion/example.onion/" placeholder="https://mywebsite.com/onion/example.onion/" />
+      <button type="submit">Open hidden service</button>
+    </form>
+    <script>
+      const form = document.getElementById('gatewayForm');
+      const input = document.getElementById('url');
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const value = input.value.trim();
+        window.location.href = value;
+      });
+    </script>
+  </body>
+</html>

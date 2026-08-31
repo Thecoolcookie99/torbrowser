@@ -1,0 +1,17 @@
+{
+  "name": "tor-cloudflare-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250821.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.101.0"
+  }
+}
