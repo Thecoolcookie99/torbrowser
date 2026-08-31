@@ -16,6 +16,8 @@ const DEFAULT_FETCH_TIMEOUT_MS = 120_000;
 
 setWasmUrl(torWasmModule as unknown as URL);
 
+const sharedTorStorage = new storage.MemoryStorage();
+
 export type TorFetchEnv = {
   TOR_GATEWAY?: string;
   TOR_LOG_LEVEL?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
@@ -101,7 +103,7 @@ function createClient(env: TorFetchEnv): TorClient {
     log: new Log(),
     logLevel: env.TOR_LOG_LEVEL ?? 'warn',
     socketProvider: socketProvider as unknown as ArtiSocketProvider,
-    storage: new storage.MemoryStorage(),
+    storage: sharedTorStorage,
   });
 }
 
@@ -225,6 +227,7 @@ async function readLimitedText(response: Response, maxBytes: number): Promise<st
       if (value) {
         total += value.byteLength;
         if (total > maxBytes) {
+          await reader.cancel(`Response body exceeds the ${maxBytes} byte limit.`);
           throw new Error(`Response body exceeds the ${maxBytes} byte limit.`);
         }
         chunks.push(value);

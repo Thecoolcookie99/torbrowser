@@ -64,7 +64,7 @@ async function handleViewerRequest(request: Request, targetUrl: URL, env: Env, v
 }
 
 function serveIndex(request: Request, env: Env): Promise<Response> {
-  return env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request));
+  return env.ASSETS.fetch(request);
 }
 
 function renderGatewayError(targetUrl: URL, message: string): Response {
@@ -90,7 +90,7 @@ function renderGatewayError(targetUrl: URL, message: string): Response {
       <h1>Unable to load onion page</h1>
       <p><code>${safeTarget}</code></p>
       <p>${safeMessage}</p>
-      <p>Set <code>TOR_SOCKS_HOST</code> and <code>TOR_SOCKS_PORT</code> to a reachable Tor SOCKS5 proxy for Cloudflare Workers.</p>
+      <p>This Worker uses <code>tor-js</code> over Cloudflare outbound TCP sockets. Try again if the hidden service or Tor bootstrap is temporarily unavailable.</p>
       <p><a href="/">Return to viewer</a></p>
     </main>
   </body>

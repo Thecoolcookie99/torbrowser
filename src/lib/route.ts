@@ -79,7 +79,7 @@ export function parseViewerTarget(requestUrl: URL): URL | null {
   }
 
   if (requestUrl.pathname.startsWith('/view/')) {
-    return new URL(normalizeTargetUrl(decodeTargetUrl(requestUrl.pathname.slice('/view/'.length))));
+    return parseLegacyEncodedViewerTarget(requestUrl.pathname.slice('/view/'.length));
   }
 
   const legacyPath = decodeURIComponent(requestUrl.pathname.slice(1));
@@ -99,6 +99,11 @@ export function rewriteOnionHtml(html: string, baseTargetUrl: string, viewerOrig
     const quote = quotedValue[0];
     const nextValue = rewriteMaybeOnionUrl(value, baseTargetUrl, viewerOrigin);
     return `${attribute}=${quote}${escapeAttribute(nextValue)}${quote}`;
+  });
+
+  const unquotedUrlAttributePattern = new RegExp(`\\b(${URL_ATTRIBUTES.join('|')})\\s*=\\s*([^\\s"'=<>]+)`, 'gi');
+  rewritten = rewritten.replace(unquotedUrlAttributePattern, (match, attribute: string, value: string) => {
+    return `${attribute}=${escapeAttribute(rewriteMaybeOnionUrl(value, baseTargetUrl, viewerOrigin))}`;
   });
 
   rewritten = rewritten.replace(/\bsrcset\s*=\s*("([^"]*)"|'([^']*)')/gi, (match, quotedValue: string, doubleValue?: string, singleValue?: string) => {
@@ -191,6 +196,14 @@ function parseMirroredViewerTarget(requestUrl: URL): URL | null {
 
   const [, scheme, host, path = '/'] = match;
   return new URL(normalizeTargetUrl(`${scheme}://${host}${path}${requestUrl.search}`));
+}
+
+function parseLegacyEncodedViewerTarget(encoded: string): URL | null {
+  try {
+    return new URL(normalizeTargetUrl(decodeTargetUrl(encoded)));
+  } catch {
+    return null;
+  }
 }
 
 function encodeTargetUrl(targetUrl: string): string {
