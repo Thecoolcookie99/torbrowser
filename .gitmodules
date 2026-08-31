@@ -1,0 +1,3 @@
+[submodule "tor-js"]
+	path = tor-js
+	url = https://github.com/ethereum/tor-js.git
