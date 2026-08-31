@@ -1,4 +1,4 @@
-export type ParsedGatewayPath = {
+﻿export type ParsedGatewayPath = {
   onionHost: string;
   path: string;
   search: string;
@@ -6,8 +6,11 @@ export type ParsedGatewayPath = {
 };
 
 export function parseGatewayPath(url: URL): ParsedGatewayPath {
-  const pathname = url.pathname;
-  const match = pathname.match(/^\/onion\/([^/]+)(\/.*)?$/i);
+  const pathname = decodeURIComponent(url.pathname);
+  const direct = pathname.match(/^\/http:\/\/([^/]+?\.onion)(\/.*)?$/i);
+  const legacy = pathname.match(/^\/onion\/([^/]+?\.onion)(\/.*)?$/i);
+  const match = direct ?? legacy;
+
   if (!match) {
     throw new Error('Request is not on the onion gateway route');
   }
@@ -29,13 +32,13 @@ export function parseGatewayPath(url: URL): ParsedGatewayPath {
 export function rewriteOnionHtml(html: string, gatewayPrefix: string): string {
   const base = gatewayPrefix.endsWith('/') ? gatewayPrefix.slice(0, -1) : gatewayPrefix;
 
-  return html.replace(/(href|src)=(["'])(https?:\/\/[^"']+)(\2)/gi, (match, attr, quote, target) => {
+  return html.replace(/(href|src)=(['"])((?:https?:)?\/\/[^'"]+)(\2)/gi, (match, attr, quote, target) => {
     try {
       const url = new URL(target);
       if (!/\.onion(?:\.|$)/i.test(url.hostname)) {
         return match;
       }
-      const rewritten = `${base}/${url.hostname}${url.pathname}${url.search}${url.hash}`;
+      const rewritten = `${base}${url.pathname}${url.search}${url.hash}`;
       return `${attr}=${quote}${rewritten}${quote}`;
     } catch {
       return match;
@@ -43,6 +46,7 @@ export function rewriteOnionHtml(html: string, gatewayPrefix: string): string {
   });
 }
 
-export function gatewayUrlFor(onionHost: string, pathname: string, search = ''): string {
-  return `/onion/${onionHost}${pathname}${search}`;
+export function gatewayUrlFor(onionHost: string, pathname = '/', search = ''): string {
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return `/http://${onionHost}${normalized}${search}`;
 }

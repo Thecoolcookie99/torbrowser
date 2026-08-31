@@ -1,42 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
-import { parseGatewayPath, rewriteOnionHtml } from './lib/route.js';
+import { gatewayUrlFor, parseGatewayPath, rewriteOnionHtml } from './lib/route.js';
 import { TorConnectionManager } from './lib/tor.js';
-
-const TOR_LOCAL_HOST = '127.0.0.1';
-const TOR_SOCKS_PORT = 9050;
-
-async function fetchThroughTor(onionHost: string, request: Request): Promise<Response> {
-  const circuit = await TorConnectionManager.getInstance().connectToOnion(onionHost, 80);
-  const targetUrl = new URL(`http://${onionHost}${new URL(request.url).pathname.replace(/^\/onion\/[^/]+/, '') || '/'}${new URL(request.url).search || ''}`);
-
-  const headers = new Headers(request.headers);
-  headers.delete('host');
-  headers.set('host', onionHost);
-  headers.set('x-forwarded-for', '127.0.0.1');
-  headers.set('x-tor-circuit-id', circuit.circuitId);
-
-  const upstream = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
-    redirect: 'manual',
-  });
-
-  const responseHeaders = new Headers(upstream.headers);
-  responseHeaders.delete('transfer-encoding');
-  responseHeaders.set('x-tor-onion-host', onionHost);
-  responseHeaders.set('x-tor-gateway', 'cloudflare');
-  responseHeaders.set('x-tor-circuit-id', circuit.circuitId);
-
-  const contentType = responseHeaders.get('content-type') ?? '';
-  if (contentType.includes('text/html')) {
-    const html = await upstream.text();
-    const rewritten = rewriteOnionHtml(html, `/onion/${onionHost}`);
-    return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
-  }
-
-  return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
-}
 
 export class TorGatewayDurableObject extends DurableObject {
   private tor = TorConnectionManager.getInstance();
@@ -74,7 +38,7 @@ export class TorGatewayDurableObject extends DurableObject {
       const contentType = responseHeaders.get('content-type') ?? '';
       if (contentType.includes('text/html')) {
         const html = await upstream.text();
-        const rewritten = rewriteOnionHtml(html, `/onion/${onionHost}`);
+        const rewritten = rewriteOnionHtml(html, gatewayUrlFor(onionHost, path, search));
         return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
       }
 
@@ -92,7 +56,8 @@ export class TorGatewayDurableObject extends DurableObject {
 export default {
   async fetch(request: Request, env: { ASSETS: Fetcher; TOR_GATEWAY: DurableObjectNamespace }): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/onion/')) {
+    const isOnionRoute = /^\/(?:onion\/|http:\/\/|https:\/\/)/i.test(url.pathname);
+    if (isOnionRoute) {
       const stub = env.TOR_GATEWAY.get(env.TOR_GATEWAY.idFromName('default'));
       return stub.fetch(request);
     }

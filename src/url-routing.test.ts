@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { parseGatewayPath, rewriteOnionHtml } from './lib/route.js';
 import { buildSocks5ConnectRequest } from './lib/socks5.js';
 
-test('parseGatewayPath accepts v3 onion routes', () => {
-  const result = parseGatewayPath(new URL('https://mywebsite.com/onion/example.onion/path?x=1'));
+test('parseGatewayPath accepts direct retube.xyz/http://example.onion routes', () => {
+  const result = parseGatewayPath(new URL('https://retube.xyz/http://example.onion/path?x=1'));
   assert.deepEqual(result, {
     onionHost: 'example.onion',
     path: '/path',
@@ -40,9 +40,9 @@ test('buildSocks5ConnectRequest uses the onion host without DNS', () => {
 test('rewriteOnionHtml rewrites onion links through the gateway', () => {
   const result = rewriteOnionHtml(
     '<a href="https://example.onion/login">Go</a><img src="http://example.onion/logo.png">',
-    '/onion',
+    '/http://example.onion',
   );
 
-  assert.match(result, /href="\/onion\/example\.onion\/login"/);
-  assert.match(result, /src="\/onion\/example\.onion\/logo\.png"/);
+  assert.match(result, /href="\/http:\/\/example\.onion\/login"/);
+  assert.match(result, /src="\/http:\/\/example\.onion\/logo\.png"/);
 });
