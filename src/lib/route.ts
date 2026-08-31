@@ -13,7 +13,7 @@ export function parseGatewayPath(url: URL): ParsedGatewayPath {
   }
 
   const onionHost = match[1].toLowerCase();
-  if (!/^[a-z2-7]{16,56}\.onion$/i.test(onionHost)) {
+  if (!/^(?:[a-z2-7]{16,56}|[a-z0-9-]+(?:\.[a-z0-9-]+)*)\.onion$/i.test(onionHost)) {
     throw new Error('Invalid .onion host');
   }
 

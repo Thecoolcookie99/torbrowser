@@ -19,7 +19,7 @@ test('buildSocks5ConnectRequest uses the onion host without DNS', () => {
   assert.equal(request[1], 0x01);
   assert.equal(request[2], 0x00);
   assert.equal(request[3], 0x03);
-  assert.equal(request[4], 0x0c);
+  assert.equal(request[4], 0x0d);
   assert.equal(request[5], 0x65);
   assert.equal(request[6], 0x78);
   assert.equal(request[7], 0x61);
@@ -34,8 +34,7 @@ test('buildSocks5ConnectRequest uses the onion host without DNS', () => {
   assert.equal(request[16], 0x6f);
   assert.equal(request[17], 0x6e);
   assert.equal(request[18], 0x00);
-  assert.equal(request[19], 0x00);
-  assert.equal(request[20], 0x50);
+  assert.equal(request[19], 0x50);
 });
 
 test('rewriteOnionHtml rewrites onion links through the gateway', () => {
