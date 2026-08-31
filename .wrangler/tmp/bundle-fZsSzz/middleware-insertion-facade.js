@@ -1,8 +1,8 @@
-				import worker, * as OTHER_EXPORTS from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-TJ78dR\\ftsnfaycp6.js";
+				import worker, * as OTHER_EXPORTS from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-s8pGHs\\19n6eud2zhv.js";
 				import * as __MIDDLEWARE_0__ from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\node_modules\\wrangler\\templates\\middleware\\middleware-ensure-req-body-drained.ts";
 import * as __MIDDLEWARE_1__ from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\node_modules\\wrangler\\templates\\middleware\\middleware-miniflare3-json-error.ts";
 
-				export * from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-TJ78dR\\ftsnfaycp6.js";
+				export * from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-s8pGHs\\19n6eud2zhv.js";
 
 				export const __INTERNAL_WRANGLER_MIDDLEWARE__ = [
 					

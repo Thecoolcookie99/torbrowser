@@ -20,9 +20,9 @@ var define_ROUTES_default = {
 };
 
 // node_modules/wrangler/templates/pages-dev-pipeline.ts
-import worker from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-TJ78dR\\functionsWorker-0.47462019285580315.mjs";
+import worker from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-s8pGHs\\functionsWorker-0.188674049345953.mjs";
 import { isRoutingRuleMatch } from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\node_modules\\wrangler\\templates\\pages-dev-util.ts";
-export * from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-TJ78dR\\functionsWorker-0.47462019285580315.mjs";
+export * from "C:\\Users\\theSEAT\\Desktop\\Coding\\Github Projects\\torbrowser\\.wrangler\\tmp\\pages-s8pGHs\\functionsWorker-0.188674049345953.mjs";
 var routes = define_ROUTES_default;
 var pages_dev_pipeline_default = {
   fetch(request, env, context) {
@@ -47,4 +47,4 @@ var pages_dev_pipeline_default = {
 export {
   pages_dev_pipeline_default as default
 };
-//# sourceMappingURL=ftsnfaycp6.js.map
+//# sourceMappingURL=19n6eud2zhv.js.map
