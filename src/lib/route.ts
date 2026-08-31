@@ -7,7 +7,7 @@
 
 export function parseGatewayPath(url: URL): ParsedGatewayPath {
   const pathname = decodeURIComponent(url.pathname);
-  const direct = pathname.match(/^\/http:\/\/([^/]+?\.onion)(\/.*)?$/i);
+  const direct = pathname.match(/^\/https?:\/\/([^/]+?\.onion)(\/.*)?$/i);
   const legacy = pathname.match(/^\/onion\/([^/]+?\.onion)(\/.*)?$/i);
   const match = direct ?? legacy;
 

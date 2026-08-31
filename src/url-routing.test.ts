@@ -13,6 +13,16 @@ test('parseGatewayPath accepts direct retube.xyz/http://example.onion routes', (
   });
 });
 
+test('parseGatewayPath accepts https onion routes as supported by the gateway', () => {
+  const result = parseGatewayPath(new URL('https://retube.xyz/https://example.onion/path?x=1'));
+  assert.deepEqual(result, {
+    onionHost: 'example.onion',
+    path: '/path',
+    search: '?x=1',
+    port: 80,
+  });
+});
+
 test('buildSocks5ConnectRequest uses the onion host without DNS', () => {
   const request = buildSocks5ConnectRequest('example.onion', 80);
   assert.equal(request[0], 0x05);
