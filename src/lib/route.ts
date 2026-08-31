@@ -6,8 +6,11 @@ const URL_ATTRIBUTES = [
   'background',
   'cite',
   'data',
+  'formaction',
   'href',
   'longdesc',
+  'manifest',
+  'ping',
   'poster',
   'src',
 ] as const;
@@ -55,7 +58,9 @@ export function resolveLoadUrl(input: string, viewerOrigin = ''): string {
 }
 
 export function makeViewerPath(targetUrl: string): string {
-  return `/view/${encodeTargetUrl(targetUrl)}`;
+  const target = new URL(normalizeTargetUrl(targetUrl));
+  const scheme = target.protocol.slice(0, -1);
+  return `/view/${scheme}/${target.host}${target.pathname}${target.search}${target.hash}`;
 }
 
 export function makeViewerUrl(targetUrl: string, viewerOrigin = ''): string {
@@ -66,6 +71,11 @@ export function makeViewerUrl(targetUrl: string, viewerOrigin = ''): string {
 export function parseViewerTarget(requestUrl: URL): URL | null {
   if (requestUrl.pathname === '/view' && requestUrl.searchParams.has('url')) {
     return new URL(normalizeTargetUrl(requestUrl.searchParams.get('url') ?? ''));
+  }
+
+  const mirroredTarget = parseMirroredViewerTarget(requestUrl);
+  if (mirroredTarget) {
+    return mirroredTarget;
   }
 
   if (requestUrl.pathname.startsWith('/view/')) {
@@ -171,6 +181,16 @@ export function rewriteCssUrls(css: string, baseTargetUrl: string, viewerOrigin 
 function looksLikeOnionUrl(input: string): boolean {
   const firstSegment = input.split(/[/?#]/, 1)[0] ?? '';
   return isOnionHostname(firstSegment.split(':', 1)[0] ?? '');
+}
+
+function parseMirroredViewerTarget(requestUrl: URL): URL | null {
+  const match = /^\/view\/(https?)\/([^/]+)(\/.*)?$/i.exec(requestUrl.pathname);
+  if (!match) {
+    return null;
+  }
+
+  const [, scheme, host, path = '/'] = match;
+  return new URL(normalizeTargetUrl(`${scheme}://${host}${path}${requestUrl.search}`));
 }
 
 function encodeTargetUrl(targetUrl: string): string {
