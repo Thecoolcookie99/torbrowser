@@ -59,7 +59,7 @@ async function handleViewerRequest(request: Request, targetUrl: URL, env: Env, v
     const { response } = await fetchThroughTor(request, targetUrl, env, viewerOrigin);
     return response;
   } catch (error) {
-    return renderGatewayError(targetUrl, getErrorMessage(error));
+    return renderGatewayError(targetUrl, getErrorMessage(error), getErrorStatus(error));
   }
 }
 
@@ -67,7 +67,7 @@ function serveIndex(request: Request, env: Env): Promise<Response> {
   return env.ASSETS.fetch(request);
 }
 
-function renderGatewayError(targetUrl: URL, message: string): Response {
+function renderGatewayError(targetUrl: URL, message: string, status = 502): Response {
   const safeTarget = escapeHtml(targetUrl.toString());
   const safeMessage = escapeHtml(message);
   return new Response(`<!DOCTYPE html>
@@ -95,7 +95,7 @@ function renderGatewayError(targetUrl: URL, message: string): Response {
     </main>
   </body>
 </html>`, {
-    status: 502,
+    status,
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
@@ -115,6 +115,10 @@ function json(body: unknown, status = 200): Response {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorStatus(error: unknown): number {
+  return error instanceof Error && error.name === 'GatewayTimeoutError' ? 504 : 502;
 }
 
 function escapeHtml(value: string): string {

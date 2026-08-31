@@ -55,25 +55,27 @@ These defaults are set in `wrangler.jsonc` and `wrangler.toml`:
 
 ```json
 {
-  "FETCH_TIMEOUT_MS": "180000",
+  "FETCH_TIMEOUT_MS": "90000",
   "MAX_RESPONSE_BYTES": "10485760",
   "TOR_LOG_LEVEL": "warn"
 }
 ```
 
+`FETCH_TIMEOUT_MS` is also capped in code below Cloudflare's 524 proxy read timeout, so a slow Tor bootstrap or hidden service returns the app's own gateway error page instead of Cloudflare's timeout page.
+
 Override them in the Cloudflare Pages dashboard only if the dashboard is your source of truth for project configuration.
 
 ## Routing
 
-`public/_routes.json` sends requests through Pages Functions. The catch-all function at `functions/[[path]].ts` handles:
+`public/_routes.json` sends only dynamic gateway requests through Pages Functions. Static routes such as `/` and `/index.html` are served directly by Cloudflare Pages, while the catch-all function at `functions/[[path]].ts` handles:
 
 - `/api/resolve`
+- `/view`
 - `/view/*`
-- `/` and `/index.html`
-- static asset fallback through `env.ASSETS.fetch()`
 
 ## Troubleshooting
 
 - If Cloudflare says the Wrangler config is invalid, confirm `pages_build_output_dir` is present.
 - If bundling fails on Node built-ins such as `fs`, `stream`, `net`, or `crypto`, confirm the Pages deployment is reading `wrangler.jsonc` and applying the compatibility date/flags.
 - If the UI looks stale, run `npm run build` so `frontend/index.html` is copied to `public/index.html`.
+- If Pages returns `524`, confirm `public/_routes.json` only includes `/api/resolve`, `/view`, and `/view/*`, and keep `FETCH_TIMEOUT_MS` below Cloudflare's proxy read timeout.

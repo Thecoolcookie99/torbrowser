@@ -12,7 +12,8 @@ import {
 import { rewriteOnionHtml } from './route.js';
 
 const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
-const DEFAULT_FETCH_TIMEOUT_MS = 120_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 90_000;
+const MAX_FETCH_TIMEOUT_MS = 110_000;
 
 setWasmUrl(torWasmModule as unknown as URL);
 
@@ -33,61 +34,64 @@ export type TorFetchResult = {
 export async function fetchThroughTor(request: Request, targetUrl: URL, env: TorFetchEnv, viewerOrigin: string): Promise<TorFetchResult> {
   const client = createClient(env);
   let closeClient = true;
-  const timeoutMs = readPositiveInteger(env.FETCH_TIMEOUT_MS, DEFAULT_FETCH_TIMEOUT_MS);
+  const timeoutMs = readBoundedPositiveInteger(env.FETCH_TIMEOUT_MS, DEFAULT_FETCH_TIMEOUT_MS, MAX_FETCH_TIMEOUT_MS);
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
   try {
-    const response = await client.fetch(targetUrl.toString(), await buildTorFetchInit(request, targetUrl, viewerOrigin, timeoutMs));
-    const headers = buildResponseHeaders(response.headers);
+    return await withTimeout((async () => {
+      const response = await client.fetch(targetUrl.toString(), await buildTorFetchInit(request, targetUrl, viewerOrigin, timeoutSignal));
+      const headers = buildResponseHeaders(response.headers);
 
-    rewriteLocationHeader(headers, targetUrl.toString(), viewerOrigin);
-    headers.set('x-onion-viewer-target', targetUrl.toString());
+      rewriteLocationHeader(headers, targetUrl.toString(), viewerOrigin);
+      headers.set('x-onion-viewer-target', targetUrl.toString());
 
-    if (request.method === 'HEAD') {
-      return {
-        response: new Response(null, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        }),
-        targetUrl: targetUrl.toString(),
-      };
-    }
+      if (request.method === 'HEAD') {
+        return {
+          response: new Response(null, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          }),
+          targetUrl: targetUrl.toString(),
+        };
+      }
 
-    if (isHtml(headers)) {
-      const html = await readLimitedText(response, readPositiveInteger(env.MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES));
-      headers.set('content-type', ensureUtf8HtmlContentType(headers.get('content-type')));
+      if (isHtml(headers)) {
+        const html = await readLimitedText(response, readPositiveInteger(env.MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES));
+        headers.set('content-type', ensureUtf8HtmlContentType(headers.get('content-type')));
+        headers.delete('content-length');
+
+        return {
+          response: new Response(rewriteOnionHtml(html, targetUrl.toString(), viewerOrigin), {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          }),
+          targetUrl: targetUrl.toString(),
+        };
+      }
+
       headers.delete('content-length');
+      if (!response.body) {
+        return {
+          response: new Response(null, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          }),
+          targetUrl: targetUrl.toString(),
+        };
+      }
 
+      closeClient = false;
       return {
-        response: new Response(rewriteOnionHtml(html, targetUrl.toString(), viewerOrigin), {
+        response: new Response(closeWhenStreamEnds(response.body, () => client.close()), {
           status: response.status,
           statusText: response.statusText,
           headers,
         }),
         targetUrl: targetUrl.toString(),
       };
-    }
-
-    headers.delete('content-length');
-    if (!response.body) {
-      return {
-        response: new Response(null, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        }),
-        targetUrl: targetUrl.toString(),
-      };
-    }
-
-    closeClient = false;
-    return {
-      response: new Response(closeWhenStreamEnds(response.body, () => client.close()), {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      }),
-      targetUrl: targetUrl.toString(),
-    };
+    })(), timeoutMs, `Timed out after ${formatDuration(timeoutMs)} while loading ${targetUrl.hostname} through Tor.`);
   } finally {
     if (closeClient) {
       client.close();
@@ -107,7 +111,7 @@ function createClient(env: TorFetchEnv): TorClient {
   });
 }
 
-async function buildTorFetchInit(request: Request, targetUrl: URL, viewerOrigin: string, timeoutMs: number): Promise<FetchInit> {
+async function buildTorFetchInit(request: Request, targetUrl: URL, viewerOrigin: string, signal: AbortSignal): Promise<FetchInit> {
   const headers: Record<string, string> = {};
   for (const [name, value] of request.headers) {
     if (shouldForwardRequestHeader(name)) {
@@ -123,7 +127,7 @@ async function buildTorFetchInit(request: Request, targetUrl: URL, viewerOrigin:
   const init: FetchInit = {
     method: request.method,
     headers,
-    signal: AbortSignal.timeout(timeoutMs),
+    signal,
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -346,6 +350,31 @@ function rewriteRefererHeader(headers: Record<string, string>, targetUrl: URL, v
 function readPositiveInteger(rawValue: string | undefined, fallback: number): number {
   const value = Number(rawValue);
   return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function readBoundedPositiveInteger(rawValue: string | undefined, fallback: number, max: number): number {
+  return Math.min(readPositiveInteger(rawValue, fallback), max);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(message);
+      error.name = 'GatewayTimeoutError';
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
+function formatDuration(milliseconds: number): string {
+  return `${Math.round(milliseconds / 1000)} seconds`;
 }
 
 function splitGateways(rawValue: string | undefined): string[] {
