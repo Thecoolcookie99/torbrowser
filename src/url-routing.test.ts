@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseGatewayPath, rewriteOnionHtml } from './lib/route.js';
+import { parseGatewayPath, resolveLoadUrl, rewriteOnionHtml } from './lib/route.js';
 import { buildSocks5ConnectRequest } from './lib/socks5.js';
 
 test('parseGatewayPath accepts direct retube.xyz/http://example.onion routes', () => {
@@ -45,6 +45,15 @@ test('buildSocks5ConnectRequest uses the onion host without DNS', () => {
   assert.equal(request[17], 0x6e);
   assert.equal(request[18], 0x00);
   assert.equal(request[19], 0x50);
+});
+
+test('public URLs load directly instead of being forced through the onion gateway', () => {
+  assert.equal(resolveLoadUrl('https://example.com/path?x=1'), 'https://example.com/path?x=1');
+  assert.equal(resolveLoadUrl('example.com/path?x=1'), 'https://example.com/path?x=1');
+});
+
+test('onion URLs use the gateway path while normal pages remain direct', () => {
+  assert.equal(resolveLoadUrl('example.onion/path?x=1'), '/http://example.onion/path?x=1');
 });
 
 test('rewriteOnionHtml rewrites onion links through the gateway', () => {

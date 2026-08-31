@@ -50,3 +50,23 @@ export function gatewayUrlFor(onionHost: string, pathname = '/', search = ''): s
   const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
   return `/http://${onionHost}${normalized}${search}`;
 }
+
+export function resolveLoadUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const candidate = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : /^((?:[a-z2-7]{16,56}|[a-z0-9-]+(?:\.[a-z0-9-]+)*)\.onion(?:\/.*)?)$/i.test(trimmed)
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
+
+  const url = new URL(candidate);
+  if (url.hostname.toLowerCase().endsWith('.onion')) {
+    return gatewayUrlFor(url.hostname.toLowerCase(), url.pathname || '/', url.search || '');
+  }
+
+  return url.toString();
+}

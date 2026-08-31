@@ -177,11 +177,15 @@
           return `http://${trimmed}`;
         }
 
-        return `http://${trimmed}`;
+        return `https://${trimmed}`;
       }
 
       function buildGatewayTarget(value) {
         const url = new URL(value);
+        if (!url.hostname.toLowerCase().endsWith('.onion')) {
+          return url.toString();
+        }
+
         const host = url.hostname.toLowerCase();
         const pathname = url.pathname || '/';
         const search = url.search || '';
