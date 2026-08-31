@@ -88,34 +88,6 @@
         cursor: pointer;
       }
 
-      #preview {
-        border-radius: 18px;
-        overflow: hidden;
-      }
-
-      .toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 14px 16px;
-        background: var(--panel);
-        border-bottom: 1px solid var(--border);
-      }
-
-      .status {
-        color: var(--muted);
-        font-size: 0.95rem;
-      }
-
-      iframe {
-        width: 100%;
-        height: 78vh;
-        min-height: 500px;
-        border: 0;
-        background: white;
-      }
-
       @media (max-width: 640px) {
         #app {
           width: min(100vw - 16px, 1200px);
@@ -126,10 +98,6 @@
           padding: 20px;
         }
 
-        .toolbar {
-          flex-direction: column;
-          align-items: flex-start;
-        }
       }
     </style>
   </head>
@@ -150,23 +118,11 @@
         </form>
       </div>
 
-      <div id="preview" class="screen">
-        <div class="toolbar card">
-          <button id="back-button" type="button">Back</button>
-          <div id="status" class="status">Loading hidden service...</div>
-        </div>
-        <iframe id="preview-frame" title="Onion preview"></iframe>
-      </div>
     </div>
 
     <script>
       const form = document.getElementById('gateway-form');
-      const loader = document.getElementById('loader');
-      const preview = document.getElementById('preview');
-      const frame = document.getElementById('preview-frame');
-      const status = document.getElementById('status');
       const input = document.getElementById('onion-url');
-      const backButton = document.getElementById('back-button');
 
       function normalizeUrl(value) {
         const trimmed = value.trim();
@@ -180,44 +136,14 @@
         return `https://${trimmed}`;
       }
 
-      function buildGatewayTarget(value) {
-        const url = new URL(value);
-        return url.toString();
-      }
-
-      function showPreview() {
-        loader.classList.remove('active');
-        preview.classList.add('active');
-      }
-
-      function showLoader() {
-        preview.classList.remove('active');
-        loader.classList.add('active');
-      }
-
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         const normalized = normalizeUrl(input.value);
         if (!normalized) {
-          status.textContent = 'Please enter an onion URL.';
-          showLoader();
           return;
         }
 
-        showLoader();
-        status.textContent = 'Loading hidden service...';
-
-        const gatewayTarget = buildGatewayTarget(normalized);
-        setTimeout(() => {
-          frame.src = gatewayTarget;
-          status.textContent = gatewayTarget;
-          showPreview();
-        }, 1200);
-      });
-
-      backButton.addEventListener('click', () => {
-        frame.removeAttribute('src');
-        showLoader();
+        window.location.assign(new URL(normalized).toString());
       });
     </script>
   </body>
