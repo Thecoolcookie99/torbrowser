@@ -56,7 +56,7 @@ These defaults are set in `wrangler.jsonc` and `wrangler.toml`:
 ```json
 {
   "FETCH_TIMEOUT_MS": "90000",
-  "MAX_RESPONSE_BYTES": "10485760",
+  "MAX_RESPONSE_BYTES": "2097152",
   "TOR_LOG_LEVEL": "warn"
 }
 ```

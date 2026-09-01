@@ -16,6 +16,7 @@
         --accent-2: #ffe08a;
         --danger: #ff9a8a;
         --border: rgba(255, 255, 255, 0.14);
+        --overlay: rgba(7, 11, 9, 0.9);
       }
 
       * {
@@ -70,6 +71,10 @@
         padding: 13px 14px;
       }
 
+      input:read-only {
+        opacity: 0.75;
+      }
+
       button {
         border: 0;
         border-radius: 8px;
@@ -88,14 +93,122 @@
       }
 
       .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         margin-top: 14px;
         min-height: 22px;
         color: var(--accent-2);
         overflow-wrap: anywhere;
       }
 
+      .status.loading::before {
+        content: '';
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.24);
+        border-top-color: var(--accent-2);
+        border-radius: 50%;
+        flex: 0 0 auto;
+        animation: spin 0.8s linear infinite;
+      }
+
       .status.error {
         color: var(--danger);
+      }
+
+      .loading-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          linear-gradient(180deg, rgba(17, 23, 20, 0.95), rgba(17, 23, 20, 0.82)),
+          var(--overlay);
+      }
+
+      .loading-screen[hidden],
+      .loading-steps[hidden] {
+        display: none;
+      }
+
+      .loading-shell {
+        width: min(620px, 100%);
+      }
+
+      .loading-marker {
+        width: 42px;
+        height: 42px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .loading-title {
+        margin: 18px 0 8px;
+        font-size: clamp(1.5rem, 5vw, 2.3rem);
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .loading-detail {
+        max-width: 58ch;
+        margin-bottom: 20px;
+      }
+
+      .loading-steps {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .loading-steps li {
+        display: grid;
+        grid-template-columns: 16px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .loading-steps li::before {
+        content: '';
+        width: 9px;
+        height: 9px;
+        margin-top: 6px;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .loading-steps li.is-active {
+        color: var(--text);
+      }
+
+      .loading-steps li.is-active::before {
+        border-color: var(--accent-2);
+        background: var(--accent-2);
+        box-shadow: 0 0 0 4px rgba(255, 224, 138, 0.12);
+      }
+
+      .loading-steps li.is-complete {
+        color: var(--accent);
+      }
+
+      .loading-steps li.is-complete::before {
+        border-color: var(--accent);
+        background: var(--accent);
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       @media (max-width: 640px) {
@@ -119,7 +232,22 @@
     </style>
   </head>
   <body>
-    <main>
+    <div id="loading-screen" class="loading-screen" role="status" aria-live="assertive" aria-atomic="true">
+      <div class="loading-shell">
+        <div class="loading-marker" aria-hidden="true"></div>
+        <div id="loading-title" class="loading-title">Loading viewer</div>
+        <p id="loading-detail" class="loading-detail">Preparing the address bar.</p>
+        <ol id="loading-steps" class="loading-steps" aria-label="Loading progress" hidden>
+          <li data-loading-step="prepare">Checking the address</li>
+          <li data-loading-step="worker">Contacting the Worker</li>
+          <li data-loading-step="relay">Connecting to a Tor relay</li>
+          <li data-loading-step="service">Waiting for the hidden service</li>
+          <li data-loading-step="page">Loading the page</li>
+        </ol>
+      </div>
+    </div>
+
+    <main id="app-shell" aria-busy="true">
       <section class="panel">
         <h1>Onion Viewer</h1>
         <p>Load hidden-service pages through this Cloudflare Worker.</p>
@@ -144,6 +272,65 @@
       const input = document.getElementById('target-url');
       const button = document.getElementById('open-button');
       const status = document.getElementById('status');
+      const appShell = document.getElementById('app-shell');
+      const loadingScreen = document.getElementById('loading-screen');
+      const loadingTitle = document.getElementById('loading-title');
+      const loadingDetail = document.getElementById('loading-detail');
+      const loadingSteps = document.getElementById('loading-steps');
+      const loadingStepItems = Array.from(document.querySelectorAll('[data-loading-step]'));
+      let loadingTimer = 0;
+
+      const onionStages = [
+        {
+          step: 'prepare',
+          title: 'Checking the address',
+          detail: (target) => `Validating ${target.hostname} before it leaves this page.`,
+          delay: 800,
+        },
+        {
+          step: 'worker',
+          title: 'Contacting the Worker',
+          detail: (target) => `Creating a same-origin viewer route for ${target.hostname}.`,
+          delay: 1400,
+        },
+        {
+          step: 'relay',
+          title: 'Connecting to a Tor relay',
+          detail: (target) => `The Cloudflare Worker is opening a Tor connection for ${target.hostname}.`,
+          delay: 2400,
+        },
+        {
+          step: 'service',
+          title: 'Waiting for the hidden service',
+          detail: 'Hidden services can take longer while the circuit settles.',
+          delay: 3600,
+        },
+        {
+          step: 'page',
+          title: 'Loading the page',
+          detail: 'The page will appear as soon as the upstream response is ready.',
+        },
+      ];
+
+      const publicStages = [
+        {
+          step: 'prepare',
+          title: 'Checking the address',
+          detail: (target) => `Validating ${target.hostname}.`,
+          delay: 700,
+        },
+        {
+          step: 'worker',
+          title: 'Opening public URL',
+          detail: 'This address does not use the onion relay, so the browser is loading it directly.',
+          delay: 1000,
+        },
+        {
+          step: 'page',
+          title: 'Loading the page',
+          detail: 'The destination page will appear in this tab.',
+        },
+      ];
 
       function isOnionHost(hostname) {
         return /^(?:[a-z0-9-]+\.)*onion$/i.test(hostname);
@@ -164,6 +351,10 @@
           throw new Error('Only HTTP and HTTPS URLs are supported.');
         }
 
+        if (url.username || url.password) {
+          throw new Error('URLs with embedded credentials are not supported.');
+        }
+
         return url.toString();
       }
 
@@ -172,24 +363,117 @@
         return `/view/${target.protocol.slice(0, -1)}/${target.host}${target.pathname}${target.search}${target.hash}`;
       }
 
+      function getStageDetail(stage, target) {
+        return typeof stage.detail === 'function' ? stage.detail(target) : stage.detail;
+      }
+
+      function setInlineStatus(message, state = '') {
+        status.className = state ? `status ${state}` : 'status';
+        status.textContent = message;
+      }
+
+      function setLoadingMessage(title, detail) {
+        loadingTitle.textContent = title;
+        loadingDetail.textContent = detail;
+      }
+
+      function setActiveStep(stepName) {
+        const visibleItems = loadingStepItems.filter((item) => !item.hidden);
+        const activeIndex = visibleItems.findIndex((item) => item.dataset.loadingStep === stepName);
+        visibleItems.forEach((item, index) => {
+          item.classList.toggle('is-active', index === activeIndex);
+          item.classList.toggle('is-complete', activeIndex > -1 && index < activeIndex);
+        });
+      }
+
+      function showLoadingScreen(stages = []) {
+        const visibleSteps = new Set(stages.map((stage) => stage.step));
+        loadingStepItems.forEach((item) => {
+          item.hidden = !visibleSteps.has(item.dataset.loadingStep);
+          item.classList.remove('is-active', 'is-complete');
+        });
+
+        loadingScreen.hidden = false;
+        loadingSteps.hidden = stages.length === 0;
+        appShell.setAttribute('aria-busy', 'true');
+      }
+
+      function hideLoadingScreen() {
+        loadingScreen.hidden = true;
+        loadingSteps.hidden = true;
+        appShell.setAttribute('aria-busy', 'false');
+      }
+
+      function clearLoadingTimer() {
+        if (loadingTimer) {
+          window.clearTimeout(loadingTimer);
+          loadingTimer = 0;
+        }
+      }
+
+      function resetLoadingState(message = 'Ready to open an address.') {
+        clearLoadingTimer();
+        hideLoadingScreen();
+        button.disabled = false;
+        input.readOnly = false;
+        button.textContent = 'Open';
+        setInlineStatus(message);
+      }
+
+      function runLoadingStages(stages, target) {
+        let stageIndex = 0;
+
+        const updateStage = () => {
+          const stage = stages[stageIndex];
+          const detail = getStageDetail(stage, target);
+          setActiveStep(stage.step);
+          setLoadingMessage(stage.title, detail);
+          setInlineStatus(`${stage.title}. ${detail}`, 'loading');
+
+          if (stageIndex < stages.length - 1) {
+            loadingTimer = window.setTimeout(() => {
+              stageIndex += 1;
+              updateStage();
+            }, stage.delay);
+          }
+        };
+
+        updateStage();
+      }
+
+      function startNavigation(target, destination, usesOnionRelay) {
+        button.disabled = true;
+        input.readOnly = true;
+        button.textContent = 'Opening...';
+        const stages = usesOnionRelay ? onionStages : publicStages;
+        showLoadingScreen(stages);
+        runLoadingStages(stages, target);
+
+        window.setTimeout(() => {
+          window.location.assign(destination);
+        }, 180);
+      }
+
+      window.addEventListener('pageshow', () => {
+        resetLoadingState();
+      });
+
       form.addEventListener('submit', (event) => {
         event.preventDefault();
-        status.className = 'status';
-        status.textContent = '';
+        clearLoadingTimer();
 
         try {
           const normalized = normalizeTarget(input.value);
           if (!normalized) return;
 
           const target = new URL(normalized);
-          button.disabled = true;
-          status.textContent = isOnionHost(target.hostname) ? 'Opening hidden service...' : 'Opening public URL...';
+          const usesOnionRelay = isOnionHost(target.hostname);
+          const destination = usesOnionRelay ? makeViewerPath(target.toString()) : target.toString();
 
-          window.location.assign(isOnionHost(target.hostname) ? makeViewerPath(target.toString()) : target.toString());
+          startNavigation(target, destination, usesOnionRelay);
         } catch (error) {
-          button.disabled = false;
-          status.className = 'status error';
-          status.textContent = error instanceof Error ? error.message : String(error);
+          resetLoadingState('');
+          setInlineStatus(error instanceof Error ? error.message : String(error), 'error');
         }
       });
     </script>

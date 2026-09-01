@@ -8,6 +8,7 @@ import {
   rewriteMaybeOnionUrl,
   rewriteSrcset,
 } from './lib/route.js';
+import { resolveMaxResponseBytes } from './lib/tor.js';
 
 test('public URLs stay direct', () => {
   assert.equal(resolveLoadUrl('https://example.com/path?x=1'), 'https://example.com/path?x=1');
@@ -80,4 +81,10 @@ test('legacy encoded viewer paths remain parseable', () => {
   const legacyPath = `/view/${Buffer.from('http://example.onion/legacy?x=1').toString('base64url')}`;
 
   assert.equal(parseViewerTarget(new URL(legacyPath, 'https://viewer.example'))?.toString(), 'http://example.onion/legacy?x=1');
+});
+
+test('response-size guard keeps HTML buffering safely below worker memory limits', () => {
+  assert.equal(resolveMaxResponseBytes(undefined), 2 * 1024 * 1024);
+  assert.equal(resolveMaxResponseBytes('5MB'), 2 * 1024 * 1024);
+  assert.equal(resolveMaxResponseBytes('1048576'), 1048576);
 });

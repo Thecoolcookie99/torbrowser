@@ -11,9 +11,10 @@ import {
 } from 'tor-js/wasm-cdn';
 import { rewriteOnionHtml } from './route.js';
 
-const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+const DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const DEFAULT_FETCH_TIMEOUT_MS = 90_000;
 const MAX_FETCH_TIMEOUT_MS = 110_000;
+const MAX_ALLOWED_RESPONSE_BYTES = 4 * 1024 * 1024;
 
 setWasmUrl(torWasmModule as unknown as URL);
 
@@ -56,7 +57,8 @@ export async function fetchThroughTor(request: Request, targetUrl: URL, env: Tor
       }
 
       if (isHtml(headers)) {
-        const html = await readLimitedText(response, readPositiveInteger(env.MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES));
+        const maxBytes = resolveMaxResponseBytes(env.MAX_RESPONSE_BYTES);
+        const html = await readLimitedText(response, maxBytes);
         headers.set('content-type', ensureUtf8HtmlContentType(headers.get('content-type')));
         headers.delete('content-length');
 
@@ -345,6 +347,11 @@ function rewriteRefererHeader(headers: Record<string, string>, targetUrl: URL, v
   } catch {
     delete headers.referer;
   }
+}
+
+export function resolveMaxResponseBytes(rawValue: string | undefined): number {
+  const configured = readPositiveInteger(rawValue, DEFAULT_MAX_RESPONSE_BYTES);
+  return Math.min(configured, MAX_ALLOWED_RESPONSE_BYTES);
 }
 
 function readPositiveInteger(rawValue: string | undefined, fallback: number): number {
