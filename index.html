@@ -98,6 +98,17 @@
         color: var(--danger);
       }
 
+      .disclaimer {
+        margin: 16px 4px 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+
+      .disclaimer p {
+        margin: 0;
+      }
+
       @media (max-width: 640px) {
         main {
           width: min(100vw - 20px, 920px);
@@ -137,6 +148,13 @@
         </form>
         <div id="status" class="status" role="status" aria-live="polite"></div>
       </section>
+      <footer class="disclaimer" aria-label="Disclaimers">
+        <p>
+          Disclaimer: Onion Viewer is a proxy-style viewer, not Tor Browser. It does not provide browser-level
+          anonymity, isolation, or protection from unsafe content. Only open sites you trust, avoid entering sensitive
+          credentials, and follow applicable laws.
+        </p>
+      </footer>
     </main>
 
     <script>
