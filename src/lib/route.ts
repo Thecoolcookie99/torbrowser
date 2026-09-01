@@ -93,6 +93,25 @@ export function parseViewerTarget(requestUrl: URL): URL | null {
   return null;
 }
 
+export function parseViewerShortcutTarget(requestUrl: URL): URL | null {
+  if (!requestUrl.pathname.startsWith('/view/')) {
+    return null;
+  }
+
+  const shorthand = requestUrl.pathname.slice('/view/'.length);
+  if (!shorthand || /^https?\//i.test(shorthand)) {
+    return null;
+  }
+
+  const firstSegment = shorthand.split('/', 1)[0] ?? '';
+  const hostname = firstSegment.split(':', 1)[0] ?? '';
+  if (!isOnionHostname(hostname)) {
+    return null;
+  }
+
+  return new URL(normalizeTargetUrl(`${shorthand}${requestUrl.search}`));
+}
+
 export function resolveMaxResponseBytes(rawValue: string | undefined): number {
   const configured = Number(rawValue);
   if (!Number.isInteger(configured) || configured <= 0) {

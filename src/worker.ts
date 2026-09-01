@@ -1,5 +1,5 @@
 import { fetchThroughTor, type TorFetchEnv } from './lib/tor.js';
-import { isOnionHostname, normalizeTargetUrl, parseViewerTarget, resolveLoadUrl } from './lib/route.js';
+import { isOnionHostname, normalizeTargetUrl, parseViewerShortcutTarget, parseViewerTarget, resolveLoadUrl } from './lib/route.js';
 
 export type Env = TorFetchEnv & {
   ASSETS: Fetcher;
@@ -14,6 +14,11 @@ export default {
 
     if (url.pathname === '/api/resolve') {
       return handleResolve(request, url);
+    }
+
+    const shortcutTargetUrl = parseViewerShortcutTarget(url);
+    if (shortcutTargetUrl) {
+      return serveIndex(request, env);
     }
 
     const targetUrl = parseViewerTarget(url);
@@ -64,7 +69,7 @@ async function handleViewerRequest(request: Request, targetUrl: URL, env: Env, v
 }
 
 function serveIndex(request: Request, env: Env): Promise<Response> {
-  return env.ASSETS.fetch(request);
+  return env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request));
 }
 
 function renderGatewayError(targetUrl: URL, message: string, status = 502): Response {
