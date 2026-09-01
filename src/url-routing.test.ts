@@ -4,11 +4,11 @@ import {
   makeViewerPath,
   parseViewerTarget,
   resolveLoadUrl,
+  resolveMaxResponseBytes,
   rewriteOnionHtml,
   rewriteMaybeOnionUrl,
   rewriteSrcset,
 } from './lib/route.js';
-import { resolveMaxResponseBytes } from './lib/tor.js';
 
 test('public URLs stay direct', () => {
   assert.equal(resolveLoadUrl('https://example.com/path?x=1'), 'https://example.com/path?x=1');

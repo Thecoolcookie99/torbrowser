@@ -1,3 +1,6 @@
+const DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_ALLOWED_RESPONSE_BYTES = 4 * 1024 * 1024;
+
 const ONION_HOST_RE = /^(?:[a-z0-9-]+\.)*onion$/i;
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const SKIP_URL_RE = /^(?:#|about:|blob:|data:|javascript:|mailto:|tel:)/i;
@@ -88,6 +91,14 @@ export function parseViewerTarget(requestUrl: URL): URL | null {
   }
 
   return null;
+}
+
+export function resolveMaxResponseBytes(rawValue: string | undefined): number {
+  const configured = Number(rawValue);
+  if (!Number.isInteger(configured) || configured <= 0) {
+    return DEFAULT_MAX_RESPONSE_BYTES;
+  }
+  return Math.min(configured, MAX_ALLOWED_RESPONSE_BYTES);
 }
 
 export function rewriteOnionHtml(html: string, baseTargetUrl: string, viewerOrigin = ''): string {
